@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Lock, ArrowRight, User, Phone, Car, ShieldCheck, UserCircle, Hexagon, Volume2, VolumeX } from "lucide-react"
+import { Loader2, Lock, ArrowRight, User, Phone, Car, ShieldCheck, UserCircle, Hexagon, Volume2, VolumeX, MapPin } from "lucide-react"
 import { authService, UserRole } from "@/lib/services/authService"
 import { useUserStore } from "@/lib/store/useUserStore"
 import { motion, AnimatePresence } from "framer-motion"
@@ -25,8 +25,6 @@ export default function UnifiedAuth() {
   })
 
   const [soundEnabled, setSoundEnabled] = useState(false)
-  const [logoError, setLogoError] = useState(false)
-  const [rickshawError, setRickshawError] = useState(false)
 
   // If already logged in, redirect based on role
   useEffect(() => {
@@ -138,14 +136,22 @@ export default function UnifiedAuth() {
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Premium Mobility</span>
           </motion.div>
 
-          <div className="relative inline-block mt-8">
-            <h1 className="text-5xl font-black tracking-tighter flex flex-col items-center">
-              <span className="text-white">Samarth</span>
-              <span className="text-primary italic -mt-2">Ride</span>
+          <div className="relative inline-block mt-4">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex flex-col items-center leading-tight">
+              <span className="text-white">Aapla Shehar,</span>
+              <span className="text-primary italic -mt-1">Aapli Auto 🚖</span>
             </h1>
-            <p className="text-primary font-black text-sm uppercase tracking-[0.3em] italic mt-2">Vishwasacha Pravas</p>
+            <div className="mt-4 flex flex-col items-center gap-2">
+              <p className="text-primary font-black text-sm uppercase tracking-[0.3em] italic">Vishwasacha Pravas</p>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold uppercase tracking-widest bg-white/5 py-1 px-3 rounded-full border border-white/5">
+                <span>Safe</span>
+                <span className="h-1 w-1 bg-white/20 rounded-full"></span>
+                <span>Local</span>
+                <span className="h-1 w-1 bg-white/20 rounded-full"></span>
+                <span>Affordable</span>
+              </div>
+            </div>
           </div>
-          <p className="text-muted-foreground font-medium text-xs tracking-wide">Elite urban travel, simplified.</p>
         </div>
 
         {/* Auth Container */}
@@ -275,7 +281,12 @@ export default function UnifiedAuth() {
             >
               {loading ? <Loader2 className="animate-spin h-6 w-6" /> : (
                 <div className="flex items-center gap-3">
-                  <span>{isLogin ? "ACCESS HUB" : `JOIN AS ${role.toUpperCase()}`}</span>
+                  <span>
+                    {isLogin
+                      ? (role === 'passenger' ? "BOOK A RIDE" : role === 'driver' ? "DRIVE & EARN" : "MANAGE SYSTEM")
+                      : `JOIN AS ${role.toUpperCase()}`
+                    }
+                  </span>
                   <motion.div
                     animate={{ x: [0, 5, 0] }}
                     transition={{ repeat: Infinity, duration: 1.5 }}
@@ -288,11 +299,89 @@ export default function UnifiedAuth() {
           </div>
         </div>
 
-        {/* Footer info */}
-        <p className="text-center text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] px-12 leading-relaxed opacity-40">
-          Encrypted Session · Smarth OS v2.0
-        </p>
+        {/* Trust Points */}
+        <div className="grid grid-cols-3 gap-2 px-2">
+          {[
+            { icon: ShieldCheck, label: "No Commission" },
+            { icon: Lock, label: "Verified Drivers" },
+            { icon: MapPin, label: "Local Area" }
+          ].map((point, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 + (i * 0.1) }}
+              className="flex flex-col items-center text-center gap-1.5 p-3 rounded-2xl bg-white/5 border border-white/5"
+            >
+              <point.icon className="h-4 w-4 text-primary" />
+              <span className="text-[8px] font-black uppercase tracking-tight text-muted-foreground leading-tight">
+                {point.label}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Footer info & Links */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <button className="hover:text-primary transition-colors">Support</button>
+            <button className="hover:text-primary transition-colors">Contact</button>
+            <button className="hover:text-primary transition-colors">Privacy Policy</button>
+          </div>
+          <p className="text-center text-muted-foreground text-[8px] font-black uppercase tracking-[0.2em] opacity-40">
+            Encrypted Session · Smarth OS v2.0
+          </p>
+        </div>
       </motion.div>
+
+      {/* Animated Rickshaw Visual */}
+      <div className="fixed bottom-0 left-0 w-full overflow-hidden pointer-events-none pb-20 h-40">
+        {/* Simple Road Line */}
+        <div className="absolute bottom-12 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+        <motion.div
+          initial={{ x: "-100%", opacity: 0 }}
+          animate={{ x: "0%", opacity: 1 }}
+          transition={{ duration: 2, ease: "easeOut", delay: 1 }}
+          className="absolute bottom-10 left-[10%]"
+        >
+          <motion.div
+            animate={{
+              y: [0, -3, 0],
+              rotate: [0, -1, 0, 1, 0]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="flex flex-col items-center"
+          >
+            <div className="relative">
+              {/* Headlight Glow */}
+              <div className="absolute -right-4 top-2 h-8 w-16 bg-primary/20 blur-xl rounded-full" />
+              <Car className="h-12 w-12 text-primary drop-shadow-[0_0_15px_rgba(245,200,66,0.3)]" />
+            </div>
+
+            {/* Motion Lines */}
+            <div className="mt-1 flex gap-1">
+              {[1, 2, 3].map(i => (
+                <motion.div
+                  key={i}
+                  animate={{ x: [-10, 10], opacity: [0, 1, 0] }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    delay: i * 0.4,
+                    ease: "linear"
+                  }}
+                  className="h-[1px] w-4 bg-white/20"
+                />
+              ))}
+            </div>
+          </motion.div>
+        </motion.div>
+      </div>
 
     </div>
   )
