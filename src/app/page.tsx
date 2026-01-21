@@ -138,36 +138,13 @@ export default function UnifiedAuth() {
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Premium Mobility</span>
           </motion.div>
 
-          {/* Logo Section */}
-          <motion.div
-            initial={{ scale: 0.96, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="flex flex-col items-center gap-2"
-          >
-            <div className="relative h-32 w-32 group">
-              {/* Fallback Icon (Always there) */}
-              <div className="absolute inset-0 bg-surface border-4 border-primary rounded-[2.5rem] flex items-center justify-center shadow-glow">
-                <Hexagon className="h-16 w-16 text-primary" />
-              </div>
-              {/* Actual Logo Image */}
-              {!logoError && (
-                <img
-                  src="/logo.png"
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-contain drop-shadow-glow z-10"
-                  onError={() => setLogoError(true)}
-                />
-              )}
-            </div>
-            <div className="relative inline-block">
-              <h1 className="text-5xl font-black tracking-tighter flex flex-col items-center">
-                <span className="text-white">Samarth</span>
-                <span className="text-primary italic -mt-2">Ride</span>
-              </h1>
-            </div>
+          <div className="relative inline-block mt-8">
+            <h1 className="text-5xl font-black tracking-tighter flex flex-col items-center">
+              <span className="text-white">Samarth</span>
+              <span className="text-primary italic -mt-2">Ride</span>
+            </h1>
             <p className="text-primary font-black text-sm uppercase tracking-[0.3em] italic mt-2">Vishwasacha Pravas</p>
-          </motion.div>
+          </div>
           <p className="text-muted-foreground font-medium text-xs tracking-wide">Elite urban travel, simplified.</p>
         </div>
 
@@ -317,62 +294,6 @@ export default function UnifiedAuth() {
         </p>
       </motion.div>
 
-      {/* Animated Auto-Rickshaw & Road */}
-      <div className="fixed bottom-0 left-0 w-full overflow-hidden pointer-events-none pb-8 h-32">
-        {/* Road line */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.1 }}
-          className="absolute bottom-12 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white to-transparent"
-        />
-
-        <motion.div
-          key="rickshaw-anim"
-          initial={{ x: -250, opacity: 0 }}
-          animate={{ x: 50, opacity: 1 }}
-          transition={{ duration: 1.8, ease: "easeOut", delay: 0.5 }}
-          className="absolute bottom-10 left-0"
-        >
-          <motion.div
-            animate={{ y: [0, -4, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="relative"
-          >
-            {/* Rickshaw Headlight Glow */}
-            <motion.div
-              animate={{ opacity: [0.1, 0.3, 0.1] }}
-              transition={{ duration: 4, repeat: Infinity }}
-              className="absolute -right-4 top-4 h-12 w-24 bg-primary blur-2xl rounded-full"
-            />
-
-            <div className="relative h-16 w-16">
-              {/* Fallback Icon */}
-              <Car className="absolute inset-0 h-10 w-10 text-primary/80 stroke-[1.5px] z-0" />
-              {/* Actual Rickshaw Image */}
-              {!rickshawError && (
-                <img
-                  src="/logo.png"
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-contain filter brightness-90 grayscale-[0.2] z-10"
-                  onError={() => setRickshawError(true)}
-                />
-              )}
-            </div>
-          </motion.div>
-        </motion.div>
-
-        {/* Dynamic Road Motion Lines */}
-        <div className="absolute bottom-11 w-full flex justify-around opacity-5">
-          {[1, 2, 3, 4, 5].map(i => (
-            <motion.div
-              key={i}
-              animate={{ x: [-20, 20] }}
-              transition={{ duration: 3, repeat: Infinity, delay: i * 0.5 }}
-              className="h-[1px] w-8 bg-white"
-            />
-          ))}
-        </div>
-      </div>
     </div>
   )
 }
