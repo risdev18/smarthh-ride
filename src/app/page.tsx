@@ -1,5 +1,6 @@
 "use client"
 
+// Updated: OTP + Google Login Flow
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useUserStore } from "@/lib/store/useUserStore"
