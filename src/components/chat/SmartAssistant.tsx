@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { MessageCircle, X, Send, Sparkles, User, Bot, Loader2 } from "lucide-react"
+import { MessageCircle, X, Phone, CarFront, HelpCircle, MapPin, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface Message {
@@ -10,54 +10,79 @@ interface Message {
     text: string;
     sender: 'user' | 'bot';
     timestamp: Date;
+    isAction?: boolean; // If true, shows buttons
 }
 
 export default function SmartAssistant() {
     const [isOpen, setIsOpen] = useState(false)
     const [messages, setMessages] = useState<Message[]>([
-        { id: '1', text: "Hello! I am your Smarth Rides AI Assistant. How can I help you today?", sender: 'bot', timestamp: new Date() }
+        {
+            id: '1',
+            text: "नमस्कार 🙏\nमी समर्थ राईड हेल्पलाईन.\n\nतुम्हाला काय मदत हवी आहे?",
+            sender: 'bot',
+            timestamp: new Date(),
+            isAction: true
+        }
     ])
-    const [input, setInput] = useState("")
-    const [loading, setLoading] = useState(false)
+
     const scrollRef = useRef<HTMLDivElement>(null)
 
+    // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight
         }
-    }, [messages, loading])
+    }, [messages, isOpen])
 
-    const handleSend = async () => {
-        if (!input.trim()) return
+    // --- RULE-BASED LOGIC ---
+    const handleAction = (action: string) => {
+        // 1. Add User Selection to Chat
+        const userMsg: Message = {
+            id: Date.now().toString(),
+            text: action,
+            sender: 'user',
+            timestamp: new Date()
+        };
+        setMessages(prev => [...prev, userMsg]);
 
-        const userMsg: Message = { id: Date.now().toString(), text: input, sender: 'user', timestamp: new Date() }
-        setMessages(prev => [...prev, userMsg])
-        setInput("")
-        setLoading(true)
-
-        // Mock AI Response Logic
+        // 2. Bot Response Logic (Timeout for natural feel)
         setTimeout(() => {
-            let botResponse = "I'm still learning about Smarth Rides logistics. Could you please rephrase that?"
-            const query = input.toLowerCase()
+            let botText = "";
+            let showOptions = false;
 
-            if (query.includes("book") || query.includes("ride")) {
-                botResponse = "To book a ride, go to the Passenger tab, enter your destination in 'Where To?', and confirm your fare estimate!"
-            } else if (query.includes("driver") || query.includes("register")) {
-                botResponse = "Drivers can register via the Driver tab. You'll need to upload your License, RC Book, and Insurance for verification."
-            } else if (query.includes("verify") || query.includes("pending")) {
-                botResponse = "Verification usually takes 2-4 hours. Our admins review documents for safety and compliance."
-            } else if (query.includes("clear") || query.includes("reset")) {
-                botResponse = "Data reset requests can be handled via the Admin panel's System Settings."
-            } else if (query.includes("earning") || query.includes("450")) {
-                botResponse = "The earnings display in the prototype might be static. In a live system, your earnings update instantly after every completed trip."
-            } else if (query.includes("hello") || query.includes("hi")) {
-                botResponse = "Namaste! I am Smarth Rides Assistant. Ready to get you moving!"
+            switch (action) {
+                case "🚖 Book Auto (रिक्षा बुक करा)":
+                    botText = "रिक्षा बुक करण्यासाठी:\n\n1. Passenger Tab वर जा.\n2. 'Where to?' मध्ये ठिकाण टाका.\n3. 'Call Driver' किंवा 'Confirm' करा.\n\nमी तुम्हाला तिकडे नेऊ का?";
+                    break;
+                case "💰 Return Ride Charges?":
+                    botText = "🔁 **Return Ride (परत येणे)**\n\nगावातून शहरात जाताना ड्रायव्हरला रिकामं परत यावं लागतं, म्हणून 'One Way' आणि 'Return' चे दर वेगळे असतात.\n\nरिटर्न राईड स्वस्त पडते! ✅";
+                    break;
+                case "📞 Call Driver / Support":
+                    botText = "तुम्हाला कोणाशी बोलायचे आहे?";
+                    showOptions = true; // Sub-menu
+                    break;
+                case "❌ Problem / Help":
+                    botText = "काय अडचण आहे?\n(What is the problem?)";
+                    break;
+                case "Late Driver":
+                    botText = "माफ करा 🙏\nकधी कधी ट्रॅफिकमुळे उशीर होतो.\n\nकृपया ड्रायव्हरला थेट कॉल करा.";
+                    break;
+                case "Emergency 🚨":
+                    botText = "🚨 **Emergency Help**\n\nस्थानिक पोलीस: 100\nसमर्थ हेल्पलाइन: +91 8468943268\n\nतुमचे लोकेशन शेअर करा.";
+                    break;
+                default:
+                    botText = "ठीक आहे. आणखी काही मदत हवी असल्यास सांगा. 🙏";
             }
 
-            const botMsg: Message = { id: (Date.now() + 1).toString(), text: botResponse, sender: 'bot', timestamp: new Date() }
-            setMessages(prev => [...prev, botMsg])
-            setLoading(false)
-        }, 1200)
+            const botMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                text: botText,
+                sender: 'bot',
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, botMsg]);
+
+        }, 600);
     }
 
     return (
@@ -70,12 +95,9 @@ export default function SmartAssistant() {
             >
                 <Button
                     onClick={() => setIsOpen(!isOpen)}
-                    className="h-16 w-16 rounded-full bg-primary text-black shadow-2xl shadow-primary/20 flex items-center justify-center p-0 border-4 border-slate-900"
+                    className="h-16 w-16 rounded-full bg-yellow-400 text-black shadow-2xl shadow-yellow-500/40 flex items-center justify-center p-0 border-4 border-black"
                 >
-                    {isOpen ? <X className="h-8 w-8" /> : <MessageCircle className="h-8 w-8" />}
-                    {!isOpen && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black h-6 w-6 rounded-full flex items-center justify-center ring-4 ring-slate-950">1</span>
-                    )}
+                    {isOpen ? <X className="h-8 w-8" /> : <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Helper" className="h-10 w-10 rounded-full" />}
                 </Button>
             </motion.div>
 
@@ -86,78 +108,61 @@ export default function SmartAssistant() {
                         initial={{ opacity: 0, y: 100, scale: 0.8, transformOrigin: 'bottom right' }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 100, scale: 0.8 }}
-                        className="fixed bottom-24 right-6 w-[90vw] max-w-[400px] h-[600px] bg-slate-950 border border-white/10 rounded-[2.5rem] shadow-2xl z-[1000] flex flex-col overflow-hidden"
+                        className="fixed bottom-24 right-6 w-[90vw] max-w-[360px] h-[550px] bg-white border-2 border-slate-900 rounded-[2rem] shadow-2xl z-[1000] flex flex-col overflow-hidden font-sans"
                     >
-                        {/* Header */}
-                        <div className="bg-primary p-6 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-black rounded-2xl flex items-center justify-center">
-                                    <Sparkles className="h-5 w-5 text-primary" />
-                                </div>
-                                <div>
-                                    <h3 className="text-black font-black uppercase italic tracking-tight leading-none">Smart Assistant</h3>
-                                    <p className="text-black/60 text-[10px] font-black uppercase tracking-widest mt-1">Live AI Support</p>
-                                </div>
+                        {/* Header: "Local Auto Stand Helper" */}
+                        <div className="bg-yellow-400 p-4 flex items-center gap-3 border-b-2 border-slate-900">
+                            <div className="h-10 w-10 bg-white border-2 border-black rounded-full overflow-hidden">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Helper" />
                             </div>
-                            <div className="flex items-center gap-1.5 bg-black/10 px-2 py-1 rounded-full text-black/40 text-[10px] font-bold">
-                                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE
+                            <div>
+                                <h3 className="text-black font-black text-lg leading-none">समर्थ हेल्पलाइन</h3>
+                                <p className="text-slate-700 text-xs font-bold mt-1">आपला मित्र (Helper) 🤝</p>
                             </div>
                         </div>
 
                         {/* Messages Area */}
                         <div
                             ref={scrollRef}
-                            className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth no-scrollbar"
+                            className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 scroll-smooth"
                         >
                             {messages.map((msg) => (
-                                <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`flex gap-3 max-w-[85%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                                        <div className={`h-8 w-8 rounded-xl shrink-0 flex items-center justify-center ${msg.sender === 'user' ? 'bg-primary text-black' : 'bg-slate-900 text-slate-400'}`}>
-                                            {msg.sender === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                                        </div>
-                                        <div className={`p-4 rounded-2xl text-sm font-medium leading-relaxed ${msg.sender === 'user' ? 'bg-primary text-black rounded-tr-none' : 'bg-slate-900 text-slate-300 rounded-tl-none'}`}>
-                                            {msg.text}
-                                            <p className={`text-[9px] mt-2 font-bold uppercase opacity-40 ${msg.sender === 'user' ? 'text-black' : 'text-slate-500'}`}>
-                                                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </p>
-                                        </div>
+                                <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                                    {/* Message Bubble */}
+                                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm font-bold whitespace-pre-wrap shadow-sm ${msg.sender === 'user'
+                                            ? 'bg-slate-900 text-white rounded-tr-none'
+                                            : 'bg-white text-slate-900 border border-slate-200 rounded-tl-none'
+                                        }`}>
+                                        {msg.text}
                                     </div>
+
+                                    {/* Timestamp */}
+                                    <span className="text-[10px] text-slate-400 font-bold mt-1 px-1">
+                                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
                                 </div>
                             ))}
-                            {loading && (
-                                <div className="flex justify-start">
-                                    <div className="flex gap-3">
-                                        <div className="h-8 w-8 rounded-xl bg-slate-900 flex items-center justify-center">
-                                            <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                                        </div>
-                                        <div className="bg-slate-900 p-4 rounded-2xl rounded-tl-none">
-                                            <div className="flex gap-1">
-                                                <div className="w-1.5 h-1.5 bg-slate-700 rounded-full animate-bounce"></div>
-                                                <div className="w-1.5 h-1.5 bg-slate-700 rounded-full animate-bounce delay-100"></div>
-                                                <div className="w-1.5 h-1.5 bg-slate-700 rounded-full animate-bounce delay-200"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
-                        {/* Input Area */}
-                        <div className="p-6 bg-slate-900/50 border-t border-white/5">
-                            <div className="relative flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="Type your question..."
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                    className="flex-1 h-14 bg-slate-950 border border-white/5 rounded-2xl px-6 outline-none focus:border-primary/30 transition-all text-white placeholder:text-slate-700 font-medium"
-                                />
-                                <Button
-                                    onClick={handleSend}
-                                    className="h-14 w-14 rounded-2xl bg-primary text-black p-0 hover:bg-white transition-colors"
-                                >
-                                    <Send className="h-6 w-6" />
+                        {/* BIG ACTION BUTTONS (No Typing needed mostly) */}
+                        <div className="p-4 bg-white border-t border-slate-100">
+                            <p className="text-[10px] uppercase font-black text-slate-400 mb-2 tracking-widest text-center">👇 Tap to Select (निवडा)</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1 hover:bg-yellow-50 hover:border-yellow-400" onClick={() => handleAction("🚖 Book Auto (रिक्षा बुक करा)")}>
+                                    <CarFront className="h-5 w-5 text-slate-900" />
+                                    <span className="text-xs font-bold">Book Auto</span>
+                                </Button>
+                                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1 hover:bg-yellow-50 hover:border-yellow-400" onClick={() => handleAction("💰 Return Ride Charges?")}>
+                                    <RefreshCw className="h-5 w-5 text-green-600" />
+                                    <span className="text-xs font-bold">Return Charges</span>
+                                </Button>
+                                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1 hover:bg-yellow-50 hover:border-yellow-400" onClick={() => handleAction("📞 Call Driver / Support")}>
+                                    <Phone className="h-5 w-5 text-blue-600" />
+                                    <span className="text-xs font-bold">Call Support</span>
+                                </Button>
+                                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1 hover:bg-red-50 hover:border-red-400" onClick={() => handleAction("Emergency 🚨")}>
+                                    <AlertCircle className="h-5 w-5 text-red-600" />
+                                    <span className="text-xs font-bold">Emergency</span>
                                 </Button>
                             </div>
                         </div>
