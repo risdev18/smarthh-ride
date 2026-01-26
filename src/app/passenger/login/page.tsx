@@ -4,9 +4,10 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Lock, ArrowRight, MapPin } from "lucide-react"
-import { passengerService } from "@/lib/services/passengerService"
+import { Loader2, Lock, ArrowRight, MapPin, Phone, ShieldCheck } from "lucide-react"
 import { useUserStore } from "@/lib/store/useUserStore"
+import { authService } from "@/lib/services/authService"
+import { motion, AnimatePresence } from "framer-motion"
 
 export default function PassengerLogin() {
     const router = useRouter()
@@ -14,21 +15,24 @@ export default function PassengerLogin() {
 
     const [phone, setPhone] = useState("")
     const [password, setPassword] = useState("")
+    const [step, setStep] = useState<'phone' | 'password'>('phone')
     const [loading, setLoading] = useState(false)
 
+    const handleContinue = async () => {
+        if (phone.length !== 10) return
+        setLoading(true)
+        // Simulate phone check
+        setTimeout(() => {
+            setLoading(false)
+            setStep('password')
+        }, 800)
+    }
+
     const handleLogin = async () => {
-        // Direct Login Mock
-        if (phone === "9999999999") {
-            setUser({ id: "demo_user", name: "Demo User", phone: "+91 " + phone, role: 'passenger', isApproved: true })
-            router.push("/passenger")
-            return
-        }
-
-        if (phone.length !== 10 || !password) return
-
+        if (!password) return
         setLoading(true)
         try {
-            const user = await passengerService.verifyCredentials("+91 " + phone, password)
+            const user = await authService.login("+91 " + phone, password)
             if (user) {
                 setUser({
                     id: user.id || "unknown",
@@ -39,96 +43,133 @@ export default function PassengerLogin() {
                 })
                 router.push("/passenger")
             } else {
-                alert("Invalid Mobile Number or Password")
+                alert("Incorrect PIN/Password. Please try again.")
             }
         } catch (e) {
-            console.error(e)
-            alert("Login Failed")
+            alert("Login failed. Check your connection.")
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <div className="flex flex-col h-screen p-6 justify-between bg-white text-black">
-            <div className="space-y-6 mt-10">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="p-4 bg-yellow-400 rounded-full border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <MapPin className="h-10 w-10 text-black fill-black" />
+        <div className="min-h-screen bg-background text-white p-8 flex flex-col justify-between font-sans">
+            <div className="space-y-12 mt-12">
+                <header className="space-y-4">
+                    <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="h-16 w-16 bg-primary rounded-2xl flex items-center justify-center shadow-glow"
+                    >
+                        <MapPin className="h-8 w-8 text-background stroke-[3px]" />
+                    </motion.div>
+                    <div>
+                        <h1 className="text-4xl font-black italic tracking-tighter">SMARTH <span className="text-primary not-italic">RIDE</span></h1>
+                        <p className="text-muted-foreground font-black uppercase tracking-[0.3em] text-[10px] mt-1">Vishwasacha Pravas v1.0</p>
                     </div>
-                    <h1 className="text-4xl font-black text-center tracking-tighter">
-                        SMARTH <span className="text-yellow-500">RIDES</span>
-                    </h1>
-                </div>
-                <div className="text-center text-lg font-bold text-zinc-500">
-                    Your City, Your Ride.
+                </header>
+
+                <div className="space-y-8">
+                    <AnimatePresence mode="wait">
+                        {step === 'phone' ? (
+                            <motion.div
+                                key="phone"
+                                initial={{ x: 20, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                exit={{ x: -20, opacity: 0 }}
+                                className="space-y-6"
+                            >
+                                <div className="space-y-3">
+                                    <h2 className="text-2xl font-black italic tracking-tight">Enter your <span className="text-primary">Mobile</span></h2>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">Login or create a new account via phone</p>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="h-16 w-20 flex items-center justify-center bg-surface border border-white/5 rounded-2xl font-black text-white/40 italic">
+                                        +91
+                                    </div>
+                                    <Input
+                                        type="tel"
+                                        placeholder="98765 43210"
+                                        className="flex-1 h-16 bg-surface border-white/5 focus:border-primary/50 text-2xl font-black tracking-[0.2em] placeholder:text-white/10 rounded-2xl transition-all"
+                                        maxLength={10}
+                                        value={phone}
+                                        autoFocus
+                                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                                    />
+                                </div>
+                                <Button
+                                    className="w-full h-18 text-xl font-black rounded-2xl shadow-glow"
+                                    variant="premium"
+                                    onClick={handleContinue}
+                                    disabled={phone.length !== 10 || loading}
+                                >
+                                    {loading ? <Loader2 className="animate-spin h-6 w-6" /> : "CONTINUE REQUEST"}
+                                </Button>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="password"
+                                initial={{ x: 20, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                exit={{ x: -20, opacity: 0 }}
+                                className="space-y-6"
+                            >
+                                <div className="space-y-3">
+                                    <h2 className="text-2xl font-black italic tracking-tight">Secure <span className="text-primary">Login</span></h2>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">Enter your 4-digit PIN or unique password</p>
+                                </div>
+                                <div className="relative">
+                                    <Input
+                                        type="password"
+                                        placeholder="••••••••"
+                                        className="h-18 bg-surface border-white/5 focus:border-primary/50 text-3xl font-black tracking-[0.5em] placeholder:text-white/10 rounded-2xl transition-all pl-16"
+                                        value={password}
+                                        autoFocus
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    <ShieldCheck className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-primary" />
+                                </div>
+                                <div className="flex gap-4">
+                                    <Button
+                                        className="h-18 w-20 bg-white/5 border border-white/5 rounded-2xl"
+                                        onClick={() => setStep('phone')}
+                                    >
+                                        <ArrowRight className="h-6 w-6 rotate-180" />
+                                    </Button>
+                                    <Button
+                                        className="flex-1 h-18 text-xl font-black rounded-2xl shadow-glow"
+                                        variant="premium"
+                                        onClick={handleLogin}
+                                        disabled={!password || loading}
+                                    >
+                                        {loading ? <Loader2 className="animate-spin h-6 w-6" /> : "VERIFY IDENTITY"}
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
-            <div className="space-y-6">
-                <div className="space-y-2">
-                    <label className="text-xs font-bold ml-1 text-zinc-500 uppercase tracking-wider">Mobile Number</label>
-                    <div className="flex gap-3">
-                        <div className="h-14 w-16 flex items-center justify-center bg-gray-100 rounded-xl font-bold text-lg border-2 border-transparent">
-                            +91
-                        </div>
-                        <Input
-                            type="tel"
-                            placeholder="98765 43210"
-                            className="flex-1 h-14 bg-gray-100 border-2 border-transparent focus:border-black text-xl font-bold tracking-widest placeholder:text-gray-400 rounded-xl transition-all"
-                            maxLength={10}
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                        />
-                    </div>
+            <div className="space-y-6 pb-8">
+                <div className="text-center">
+                    <button
+                        onClick={() => router.push("/passenger/register")}
+                        className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-colors"
+                    >
+                        New to Smarth? <span className="text-white underline ml-2">Register Hub</span>
+                    </button>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-xs font-bold ml-1 text-zinc-500 uppercase tracking-wider">Password</label>
-                    <div className="relative">
-                        <Input
-                            type="password"
-                            placeholder="Enter Password"
-                            className="h-14 bg-gray-100 border-2 border-transparent focus:border-black text-xl font-bold placeholder:text-gray-400 rounded-xl pl-12 transition-all"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    </div>
-                </div>
+                <div className="h-[1px] bg-white/5 w-full" />
 
-                <Button
-                    className="w-full h-14 text-xl font-black bg-black text-white hover:bg-zinc-800 rounded-xl shadow-[4px_4px_0px_0px_rgba(255,215,0,1)] transition-all active:translate-y-1 active:shadow-none"
-                    size="lg"
-                    onClick={handleLogin}
-                    disabled={phone.length !== 10 || !password || loading}
-                >
-                    {loading ? <Loader2 className="animate-spin" /> : (
-                        <span className="flex items-center gap-2">
-                            LOGIN <ArrowRight className="h-5 w-5" />
-                        </span>
-                    )}
-                </Button>
-
-                <div className="text-center pt-2 space-y-4">
-                    <div>
-                        <p className="text-zinc-500 text-sm font-bold">New here?</p>
-                        <button
-                            onClick={() => router.push("/passenger/register")}
-                            className="text-black font-black underline mt-1 text-lg"
-                        >
-                            Create Account
-                        </button>
-                    </div>
-
-                    <div className="pt-4 border-t border-zinc-100">
-                        <button
-                            onClick={() => router.push("/")}
-                            className="text-primary font-black uppercase tracking-widest text-xs py-2 px-6 bg-slate-950 rounded-full shadow-lg"
-                        >
-                            Switch to Driver / Admin
-                        </button>
-                    </div>
+                <div className="flex justify-center">
+                    <button
+                        onClick={() => router.push("/")}
+                        className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest hover:text-white transition-colors"
+                    >
+                        Switch Role • Driver / Admin
+                    </button>
                 </div>
             </div>
         </div>

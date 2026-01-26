@@ -166,7 +166,7 @@ export default function UnifiedAuth() {
                   <span className="text-[12px] font-black uppercase tracking-[0.3em] text-primary italic">The Future of India's Local Travel</span>
                 </motion.div>
 
-                <h1 className="text-6xl md:text-8xl font-black tracking-tight leading-[0.95] max-w-5xl mx-auto">
+                <h1 className="text-4xl sm:text-6xl md:text-8xl font-black tracking-tight leading-[0.95] max-w-5xl mx-auto">
                   Reliable Local Rides<br />
                   <span className="text-primary italic">— Faster, Safer, Smarter</span>
                 </h1>
@@ -356,7 +356,7 @@ export default function UnifiedAuth() {
           <div className="max-w-7xl mx-auto flex flex-col items-center">
             <div className="text-center mb-20 space-y-4">
               <span className="text-primary font-black uppercase tracking-[0.4em] text-xs underline underline-offset-8">Why Smarth Rides?</span>
-              <h2 className="text-5xl md:text-6xl font-black tracking-tight uppercase">Built for trust & efficiency</h2>
+              <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight uppercase">Built for trust & efficiency</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {[
@@ -406,7 +406,7 @@ export default function UnifiedAuth() {
               </div>
             </div>
             <div className="space-y-8">
-              <h2 className="text-5xl md:text-7xl font-black tracking-tight leading-none uppercase">
+              <h2 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tight leading-none uppercase">
                 Experience Local<br />
                 <span className="text-primary italic">Mobility 2.0</span>
               </h2>
@@ -438,7 +438,7 @@ export default function UnifiedAuth() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-24 space-y-4">
               <span className="text-primary font-black uppercase tracking-[0.4em] text-xs">The Flow</span>
-              <h2 className="text-5xl font-black uppercase">3 Steps to start</h2>
+              <h2 className="text-3xl md:text-5xl font-black uppercase">3 Steps to start</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
               {[

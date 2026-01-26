@@ -2,14 +2,13 @@
 
 import dynamic from "next/dynamic"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Phone, ShieldAlert, Share2, Star, Navigation, MapPin, User, Search, Hexagon, X, ShieldCheck } from "lucide-react"
+import { Phone, ShieldAlert, Share2, Star, Navigation, MapPin, User, Search, Hexagon, X, ShieldCheck, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-
-// Dynamic Map
-import { adminService } from "@/lib/services/adminService"
-import { UnifiedUser } from "@/lib/services/authService"
+import { db } from "@/lib/firebase"
+import { doc, onSnapshot } from "@firebase/firestore"
+import { rideService } from "@/lib/services/rideService"
 
 // Dynamic Map
 const Map = dynamic(() => import("@/components/map/MapComponent"), {
@@ -19,42 +18,72 @@ const Map = dynamic(() => import("@/components/map/MapComponent"), {
 
 export default function RideTracking() {
     const router = useRouter()
-    const [status, setStatus] = useState<'searching' | 'arriving' | 'started'>('searching')
+    const searchParams = useSearchParams()
+    const rideId = searchParams.get('rideId')
+
+    const [status, setStatus] = useState<'searching' | 'arriving' | 'started' | 'completed' | 'cancelled'>('searching')
     const [eta, setEta] = useState(3)
     const [searchStatusText, setSearchStatusText] = useState("Securing your ride...")
-    const [assignedDriver, setAssignedDriver] = useState<UnifiedUser | null>(null)
+    const [assignedDriver, setAssignedDriver] = useState<any>(null)
+    const [driverLocation, setDriverLocation] = useState<{ lat: number, lng: number } | null>(null)
+    const [rideData, setRideData] = useState<any>(null)
 
-    // Simulation: Matching with a real driver
+    // Listen to Ride Document for Real-time status
     useEffect(() => {
-        if (status === 'searching') {
-            const timer = setTimeout(async () => {
-                try {
-                    const drivers = await adminService.getAllDrivers()
-                    // NEW: Only match with drivers who are APPROVED AND ONLINE
-                    const available = drivers.find(d => d.isApproved && d.availabilityStatus === 'online')
+        if (!rideId) return
 
-                    if (available) {
-                        setAssignedDriver(available)
-                        setEta(available.currentEta || 3)
-                        setStatus('arriving')
-                        console.log(`[SAFETY DISPATCH] SMS Sent: Your Smarth Partner ${available.name} is arriving in ${available.currentEta || 3} mins.`);
-                    } else {
-                        // Fallback logic for demo
-                        const anyApproved = drivers.find(d => d.isApproved)
-                        if (anyApproved) {
-                            setAssignedDriver(anyApproved)
-                            setEta(anyApproved.currentEta || 3)
-                            setStatus('arriving')
-                            console.log(`[DEMO DISPATCH] SMS Sent with first available driver: ${anyApproved.name}`);
-                        }
-                    }
-                } catch (e) {
-                    console.error("Match error:", e)
+        const rideRef = doc(db, "rides", rideId)
+        const unsubscribe = onSnapshot(rideRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data()
+                setRideData(data)
+
+                // Map Firestore status to local UI status
+                if (data.status === 'pending') setStatus('searching')
+                else if (data.status === 'accepted' || data.status === 'arrived') setStatus('arriving')
+                else if (data.status === 'in_progress') setStatus('started')
+                else if (data.status === 'completed') {
+                    setStatus('completed')
+                    router.push(`/passenger/payment?fare=${data.fare}&driver=${data.driverName || 'Partner'}`)
                 }
-            }, 5000) // 5 seconds of "searching"
-            return () => clearTimeout(timer)
+                else if (data.status === 'cancelled') {
+                    setStatus('cancelled')
+                    alert("This ride was cancelled.")
+                    router.push('/passenger')
+                }
+
+                // If driver assigned, get driver details
+                if (data.driverId && (!assignedDriver || assignedDriver.id !== data.driverId)) {
+                    fetchDriverDetails(data.driverId)
+                }
+            }
+        })
+
+        return () => unsubscribe()
+    }, [rideId])
+
+    const fetchDriverDetails = async (driverId: string) => {
+        const driverRef = doc(db, "users", driverId)
+        onSnapshot(driverRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data()
+                setAssignedDriver({ id: docSnap.id, ...data })
+                if (data.currentLocation) setDriverLocation(data.currentLocation)
+                if (data.currentEta) setEta(data.currentEta)
+            }
+        })
+    }
+
+    const handleCancelRequest = async () => {
+        if (!rideId) return
+        try {
+            await rideService.cancelRide(rideId, "Passenger cancelled")
+            router.push('/passenger')
+        } catch (error) {
+            console.error(error)
+            router.push('/passenger')
         }
-    }, [status])
+    }
 
     // Rotating Text Effect
     useEffect(() => {
@@ -68,12 +97,22 @@ export default function RideTracking() {
         return () => clearInterval(interval)
     }, [status])
 
+    if (!rideId) return (
+        <div className="h-screen w-full bg-background flex flex-col items-center justify-center p-8 text-center space-y-6">
+            <div className="h-16 w-16 bg-alert/10 rounded-2xl flex items-center justify-center text-alert">
+                <ShieldAlert className="h-10 w-10" />
+            </div>
+            <h2 className="text-2xl font-black italic">Invalid Ride ID</h2>
+            <Button variant="premium" onClick={() => router.push('/')}>Back to Home</Button>
+        </div>
+    )
+
     return (
         <div className="relative h-screen w-full overflow-hidden bg-background font-sans select-none">
 
             {/* 1. INFINITE MAP BACKGROUND */}
             <div className="absolute inset-0 z-0">
-                <Map />
+                <Map driverLocation={driverLocation} />
                 <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background/80 pointer-events-none" />
             </div>
 
@@ -152,7 +191,7 @@ export default function RideTracking() {
                             <Button
                                 variant="ghost"
                                 className="mt-8 text-muted-foreground hover:text-white hover:bg-white/5 rounded-2xl border border-white/5"
-                                onClick={() => router.back()}
+                                onClick={handleCancelRequest}
                             >
                                 Cancel Request
                             </Button>
@@ -162,7 +201,7 @@ export default function RideTracking() {
             </AnimatePresence>
 
             {/* Arriving/In-Progress Status (Top Floating) */}
-            {status !== 'searching' && (
+            {(status === 'arriving' || status === 'started') && (
                 <div className="relative z-10 p-6 pt-16">
                     <motion.div
                         initial={{ y: -50, opacity: 0 }}
@@ -174,16 +213,18 @@ export default function RideTracking() {
                         </div>
                         <div className="flex-1">
                             <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1">
-                                {status === 'arriving' ? 'Pickup in progress' : 'Trip live'}
+                                {status === 'arriving' ? (rideData?.status === 'arrived' ? 'Partner Arrived' : 'Partner Arriving') : 'Trip Live'}
                             </p>
-                            <h2 className="text-lg font-black text-white leading-tight">Driver is arriving in <span className="text-primary italic">{eta} mins</span></h2>
+                            <h2 className="text-lg font-black text-white leading-tight">
+                                {status === 'arriving' ? (rideData?.status === 'arrived' ? 'Your partner is here' : `Arriving in ${eta} mins`) : 'En Route to Destination'}
+                            </h2>
                         </div>
                     </motion.div>
                 </div>
             )}
 
-            {/* 3. DRIVER DETAILS (Bottom Floating Sheet) */}
-            {status !== 'searching' && (
+            {/* Driver Details (Bottom Floating Sheet) */}
+            {status !== 'searching' && assignedDriver && (
                 <div className="absolute inset-x-0 bottom-0 z-30 p-6">
                     <motion.div
                         initial={{ y: 100, opacity: 0 }}
@@ -201,7 +242,7 @@ export default function RideTracking() {
                             </div>
                             <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
                                 <p className="text-[9px] font-black text-muted-foreground uppercase">Rate Locked</p>
-                                <p className="text-sm font-black text-white">₹145.00</p>
+                                <p className="text-sm font-black text-white">₹{rideData?.fare || '145.00'}</p>
                             </div>
                         </div>
 
@@ -246,7 +287,11 @@ export default function RideTracking() {
                                     <Share2 className="h-6 w-6" />
                                     <span className="text-[9px] font-black uppercase tracking-widest">Share</span>
                                 </motion.button>
-                                <motion.button whileTap={{ scale: 0.95 }} className="flex flex-col items-center gap-2 py-5 rounded-[2rem] bg-alert/10 border border-alert/20 text-alert group">
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => router.push('/passenger/emergency')}
+                                    className="flex flex-col items-center gap-2 py-5 rounded-[2rem] bg-alert/10 border border-alert/20 text-alert group"
+                                >
                                     <ShieldAlert className="h-6 w-6 group-hover:animate-pulse" />
                                     <span className="text-[9px] font-black uppercase tracking-widest">Emergency</span>
                                 </motion.button>

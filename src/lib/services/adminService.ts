@@ -1,5 +1,5 @@
 import { db } from "../firebase";
-import { collection, doc, updateDoc, getDocs, query, where } from "@firebase/firestore";
+import { collection, doc, updateDoc, getDocs, query, where, orderBy, limit } from "@firebase/firestore";
 import { UnifiedUser } from "./authService";
 
 const USERS_COLLECTION = "users";
@@ -54,6 +54,36 @@ export const adminService = {
             };
         } catch (error) {
             console.error("Error fetching stats:", error);
+            throw error;
+        }
+    },
+
+    // Fetch all rides (System wide)
+    async getAllRides(limitCount: number = 50) {
+        try {
+            const q = query(
+                collection(db, "rides"),
+                orderBy("createdAt", "desc"),
+                limit(limitCount)
+            );
+            const querySnapshot = await getDocs(q);
+            return querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error("Error fetching all rides:", error);
+            return [];
+        }
+    },
+
+    // Fetch active drivers list
+    async getActiveDrivers(): Promise<UnifiedUser[]> {
+        try {
+            const drivers = await this.getAllDrivers();
+            return drivers.filter(d => d.isApproved && d.availabilityStatus === 'online');
+        } catch (error) {
+            console.error("Error fetching active drivers:", error);
             throw error;
         }
     }

@@ -14,6 +14,13 @@ const icon = L.icon({
     iconAnchor: [12, 41],
 })
 
+// Custom Car Icon for Driver
+const carIcon = L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png", // Simple car icon
+    iconSize: [35, 35],
+    iconAnchor: [17, 17],
+})
+
 // Component to recenter map
 function Recenter({ lat, lng }: { lat: number, lng: number }) {
     const map = useMap()
@@ -26,11 +33,13 @@ function Recenter({ lat, lng }: { lat: number, lng: number }) {
 export default function MapComponent({
     center = { lat: 18.5204, lng: 73.8567 }, // Pune default
     zoom = 15,
-    showUserLocation = true
+    showUserLocation = true,
+    driverLocation = null
 }: {
     center?: { lat: number, lng: number }
     zoom?: number
     showUserLocation?: boolean
+    driverLocation?: { lat: number, lng: number } | null
 }) {
     return (
         <div className="h-full w-full relative z-0">
@@ -52,6 +61,12 @@ export default function MapComponent({
                         </Marker>
                         <Recenter lat={center.lat} lng={center.lng} />
                     </>
+                )}
+
+                {driverLocation && (
+                    <Marker position={[driverLocation.lat, driverLocation.lng]} icon={carIcon}>
+                        <Popup>Driver is here</Popup>
+                    </Marker>
                 )}
             </MapContainer>
         </div>

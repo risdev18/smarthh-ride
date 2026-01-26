@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, MapPin, Navigation, Menu, Bell, LogOut, ArrowRight, Home, Briefcase, Map as MapIcon, ShoppingBag, ShieldCheck, Info, User } from "lucide-react"
+import { Search, MapPin, Navigation, Menu, Bell, LogOut, ArrowRight, Home, Briefcase, Map as MapIcon, ShoppingBag, ShieldCheck, Info, User, History, CreditCard, Languages, AlertCircle, BookOpen, Settings } from "lucide-react"
 import { useUserStore } from "@/lib/store/useUserStore"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -36,10 +36,15 @@ export default function PassengerHome() {
     if (!user || !isLoaded) return null
 
     const hubItems = [
-        { name: "Settings", icon: Home, path: "/settings", color: "text-blue-500" },
-        { name: "Support", icon: ShieldCheck, path: "/support", color: "text-primary" },
-        { name: "About", icon: Info, path: "/about", color: "text-orange-500" },
-        { name: "Sign Out", icon: LogOut, path: "logout", color: "text-alert" }
+        { name: "My Profile", icon: User, path: "/passenger/profile", color: "text-primary" },
+        { name: "My Rides", icon: History, path: "/passenger/history", color: "text-blue-500" },
+        { name: "Saved Locations", icon: MapPin, path: "/passenger/saved-locations", color: "text-green-500" },
+        { name: "Transactions", icon: CreditCard, path: "/passenger/transactions", color: "text-yellow-500" },
+        { name: "Emergency", icon: AlertCircle, path: "/passenger/emergency", color: "text-alert" },
+        { name: "Help & Support", icon: ShieldCheck, path: "/support", color: "text-indigo-500" },
+        { name: "Language", icon: Languages, path: "/settings", color: "text-purple-500" },
+        { name: "How to Use", icon: BookOpen, path: "/how-to-use", color: "text-orange-500" },
+        { name: "Sign Out", icon: LogOut, path: "logout", color: "text-zinc-500" }
     ]
 
     return (

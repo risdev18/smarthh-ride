@@ -17,6 +17,7 @@ export interface UnifiedUser {
     verificationStatus?: 'pending' | 'approved' | 'rejected';
     availabilityStatus?: 'online' | 'offline';
     currentEta?: number; // In minutes
+    currentLocation?: { lat: number, lng: number };
     documents?: Record<string, { status: string, url: string }>;
     // Passenger specific
     savedLocations?: any[];

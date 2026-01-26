@@ -1,141 +1,120 @@
 "use client"
 
-import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Phone, Mail, Clock, MessageSquare, ChevronRight, ArrowLeft, ShieldCheck, HelpCircle } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { ArrowLeft, Phone, MessageCircle, Mail, ShieldCheck, Info, MessageSquare, ExternalLink, ChevronRight } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function SupportPage() {
     const router = useRouter()
-    const [isFlipped, setIsFlipped] = useState(false)
-    const [issueType, setIssueType] = useState("")
 
-    const supportInfo = {
-        phone: "8468943268",
-        email: "saffarlabs@gmail.com",
-        timing: "8 AM – 8 PM"
-    }
+    const contactMethods = [
+        {
+            name: "Call Support",
+            desc: "Talk to our safety team",
+            icon: Phone,
+            action: () => window.location.href = "tel:+910000000000",
+            color: "text-primary",
+            bg: "bg-primary/10"
+        },
+        {
+            name: "WhatsApp Us",
+            desc: "Chat for quick help",
+            icon: MessageCircle,
+            action: () => window.location.href = "https://wa.me/910000000000",
+            color: "text-green-500",
+            bg: "bg-green-500/10"
+        },
+        {
+            name: "Email Help",
+            desc: "Detailed support requests",
+            icon: Mail,
+            action: () => window.location.href = "mailto:support@samarthride.com",
+            color: "text-blue-500",
+            bg: "bg-blue-500/10"
+        }
+    ]
 
     return (
-        <div className="min-h-screen bg-background text-white p-6 md:p-12 font-sans">
-            <div className="max-w-md mx-auto space-y-8">
-                {/* Header */}
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full bg-white/5 hover:bg-white/10"
-                        onClick={() => router.back()}
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <h1 className="text-3xl font-black italic tracking-tight">Support <span className="text-primary not-italic">Hub</span></h1>
-                </div>
-
-                {/* Flip Card Section */}
-                <div className="relative h-[250px] w-full perspective-1000">
-                    <motion.div
-                        className="relative w-full h-full transition-all duration-700 preserve-3d cursor-pointer"
-                        animate={{ rotateY: isFlipped ? 180 : 0 }}
-                        onClick={() => setIsFlipped(!isFlipped)}
-                    >
-                        {/* Front Side: Support Status */}
-                        <div className="absolute inset-0 backface-hidden">
-                            <Card className="h-full w-full bg-gradient-to-br from-primary/20 to-charcoal border-primary/30 rounded-[2.5rem] flex flex-col items-center justify-center p-8 border-2 shadow-glow">
-                                <div className="h-16 w-16 bg-primary rounded-full flex items-center justify-center mb-4 shadow-lg">
-                                    <HelpCircle className="h-8 w-8 text-background font-bold" />
-                                </div>
-                                <h2 className="text-xl font-black uppercase tracking-widest text-white">How can we help?</h2>
-                                <p className="text-xs text-muted-foreground mt-2 font-bold uppercase tracking-tighter transition-all group-hover:text-primary">Tap to view contact details</p>
-                            </Card>
-                        </div>
-
-                        {/* Back Side: Contact Info */}
-                        <div className="absolute inset-0 backface-hidden rotate-y-180">
-                            <Card className="h-full w-full bg-surface border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-center space-y-4">
-                                <div className="flex items-center gap-4 group">
-                                    <div className="h-10 w-10 bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                                        <Phone className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Call Us</p>
-                                        <p className="text-lg font-black text-white">{supportInfo.phone}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4 group">
-                                    <div className="h-10 w-10 bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                                        <Mail className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div className="overflow-hidden">
-                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Email Support</p>
-                                        <p className="text-sm font-black text-white truncate">{supportInfo.email}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 bg-white/5 rounded-xl flex items-center justify-center">
-                                        <Clock className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Service Hours</p>
-                                        <p className="text-sm font-black text-white">{supportInfo.timing}</p>
-                                    </div>
-                                </div>
-                            </Card>
-                        </div>
-                    </motion.div>
-                </div>
-
-                {/* Raise an Issue Form */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Raise an Issue</h3>
-                    <div className="bg-surface/50 border border-white/5 rounded-[2rem] p-6 space-y-6 backdrop-blur-3xl">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] ml-1">Issue Category</label>
-                            <select
-                                className="w-full h-14 bg-background/50 border-2 border-white/5 rounded-2xl px-5 font-bold text-white outline-none focus:border-primary/40 transition-all appearance-none italic"
-                                value={issueType}
-                                onChange={(e) => setIssueType(e.target.value)}
-                            >
-                                <option value="" disabled>Select problem type</option>
-                                <option value="ride">Ride problem</option>
-                                <option value="behavior">Driver behavior</option>
-                                <option value="app">App not working</option>
-                                <option value="payment">Payment issue</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] ml-1">Description</label>
-                            <textarea
-                                placeholder="Explain your issue briefly..."
-                                className="w-full h-32 bg-background/50 border-2 border-white/5 rounded-2xl p-5 font-bold text-white outline-none focus:border-primary/40 transition-all resize-none text-sm"
-                            />
-                        </div>
-
-                        <Button
-                            className="w-full h-16 rounded-2xl text-lg font-black italic shadow-glow bg-primary text-background hover:scale-[1.02] transition-all"
-                            onClick={() => alert("Issue reported successfully to Samarth Safety Team.")}
-                        >
-                            SUBMIT TICKET
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Footer Disclaimer */}
-                <div className="text-center py-4 opacity-50">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em]">Samarth Ride Safety Protocols v1.0</p>
+        <div className="min-h-screen bg-background text-white p-6 pb-20 font-sans">
+            <div className="flex items-center gap-6 mb-10 bg-surface/30 p-6 rounded-[2.5rem] border border-white/5 backdrop-blur-xl">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.back()}
+                    className="h-12 w-12 rounded-2xl bg-white/5 hover:bg-white/10"
+                >
+                    <ArrowLeft className="h-6 w-6" />
+                </Button>
+                <div>
+                    <h1 className="text-3xl font-black italic tracking-tight">Help & <span className="text-primary not-italic">Support</span></h1>
+                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-1">We are here for you 24/7</p>
                 </div>
             </div>
 
-            <style jsx global>{`
-                .perspective-1000 { perspective: 1000px; }
-                .preserve-3d { transform-style: preserve-3d; }
-                .backface-hidden { backface-visibility: hidden; }
-                .rotate-y-180 { transform: rotateY(180deg); }
-            `}</style>
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4">
+                    {contactMethods.map((method, i) => (
+                        <motion.div
+                            key={method.name}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                        >
+                            <Card
+                                onClick={method.action}
+                                className="rounded-[2.5rem] border-white/5 bg-surface/40 overflow-hidden cursor-pointer group hover:bg-white/5 transition-all"
+                            >
+                                <div className="p-6 flex items-center justify-between">
+                                    <div className="flex items-center gap-5">
+                                        <div className={`h-16 w-16 rounded-[1.5rem] ${method.bg} flex items-center justify-center ${method.color} shadow-lg shadow-black/20`}>
+                                            <method.icon className="h-8 w-8" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black italic uppercase tracking-tighter">{method.name}</h3>
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{method.desc}</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="h-6 w-6 text-white/10 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                                </div>
+                            </Card>
+                        </motion.div>
+                    ))}
+                </div>
+
+                <div className="space-y-4 pt-4">
+                    <h4 className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] pl-4">Quick Links</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                        {[
+                            { name: "How it works", icon: Info, path: "/how-to-use" },
+                            { name: "Safety Tips", icon: ShieldCheck, path: "/safety" },
+                            { name: "Privacy Policy", icon: MessageSquare, path: "/privacy" },
+                            { name: "Terms of Use", icon: ExternalLink, path: "/terms" }
+                        ].map((link) => (
+                            <Button
+                                key={link.name}
+                                variant="ghost"
+                                className="h-20 bg-white/5 rounded-[2rem] border border-white/5 flex flex-col items-center justify-center gap-2 hover:bg-white/10"
+                                onClick={() => router.push(link.path)}
+                            >
+                                <link.icon className="h-5 w-5 text-primary" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">{link.name}</span>
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+
+                <Card className="rounded-[3rem] border-white/5 bg-primary/5 p-8 text-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <ShieldCheck className="h-20 w-20" />
+                    </div>
+                    <h3 className="text-lg font-black text-primary italic mb-2">Samarth Safety Shield</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">Your safety is our #1 priority. For ongoing rides, use the Emergency button on the tracking screen for immediate SOS.</p>
+                </Card>
+            </div>
+
+            <p className="text-center text-[8px] font-black uppercase tracking-[0.5em] text-white/10 mt-20">Samarth Ride - Safe & Trusted Service</p>
         </div>
     )
 }

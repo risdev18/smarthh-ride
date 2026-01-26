@@ -73,23 +73,28 @@ export default function SettingsPage() {
                 <section className="space-y-4">
                     <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Preferences</h3>
                     <div className="space-y-3">
-                        <Card className="bg-surface/50 border border-white/5 rounded-3xl p-5 hover:bg-white/5 transition-colors cursor-pointer">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
-                                        <Globe className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <p className="font-black italic text-white uppercase tracking-tighter">App Language</p>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{language}</p>
-                                    </div>
+                        <Card className="bg-surface/50 border border-white/5 rounded-3xl p-6">
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4 border-b border-white/5 pb-4">
+                                    <Globe className="h-5 w-5 text-blue-500" />
+                                    <p className="font-black italic text-white uppercase tracking-tighter">App Language</p>
                                 </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                <div className="grid grid-cols-3 gap-3">
+                                    {['English', 'Hindi', 'Marathi'].map((lang) => (
+                                        <button
+                                            key={lang}
+                                            onClick={() => setLanguage(lang)}
+                                            className={`h-12 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === lang ? 'bg-primary text-background italic shadow-glow' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                                        >
+                                            {lang}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </Card>
 
                         <Card
-                            className="bg-surface/50 border border-white/5 rounded-3xl p-5 hover:bg-white/5 transition-colors cursor-pointer"
+                            className="bg-surface/50 border border-white/5 rounded-3xl p-6 hover:bg-white/5 transition-colors cursor-pointer"
                             onClick={() => setNotifications(!notifications)}
                         >
                             <div className="flex items-center justify-between">

@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft, Clock, MapPin, Search, Navigation2, X, CarFront, ChevronRight, Sparkles, ArrowRight, User, Users, Info, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Clock, MapPin, Search, Navigation2, X, CarFront, ChevronRight, Sparkles, ArrowRight, User, Users, Info, ShieldCheck, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import dynamic from "next/dynamic"
+import { useUserStore } from "@/lib/store/useUserStore"
+import { rideService } from "@/lib/services/rideService"
 
 // Dynamic Map (Reusing the component)
 const Map = dynamic(() => import("@/components/map/MapComponent"), {
@@ -16,26 +18,70 @@ const Map = dynamic(() => import("@/components/map/MapComponent"), {
 
 export default function BookRide() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const { user } = useUserStore()
+
     const [step, setStep] = useState<'search' | 'options' | 'finding'>('search')
     const [baseFare, setBaseFare] = useState(15) // Default base price
     const [fare, setFare] = useState(15) // Total display price
     const [passengers, setPassengers] = useState(1)
     const [selectedVehicle, setSelectedVehicle] = useState('auto')
+    const [rideType, setRideType] = useState<'one-way' | 'return' | 'wait'>('one-way')
     const [isMounted, setIsMounted] = useState(false)
-
-    // Auto-calculate total fare when base price or passengers change
-    useEffect(() => {
-        setFare(baseFare * passengers)
-    }, [baseFare, passengers])
-
-    useEffect(() => {
-        setIsMounted(true)
-    }, [])
+    const [isBooking, setIsBooking] = useState(false)
 
     // Input States
     const [pickup, setPickup] = useState("Shivaji Nagar, Pune")
     const [destination, setDestination] = useState("")
     const [activeInput, setActiveInput] = useState<'pickup' | 'destination'>('destination')
+
+    // Handle pre-fill from URL
+    useEffect(() => {
+        const p = searchParams.get('pickup')
+        const d = searchParams.get('drop')
+        if (p) setPickup(p)
+        if (d) {
+            setDestination(d)
+            setStep('options')
+        }
+    }, [searchParams])
+
+    // Auto-calculate total fare when base price, passengers or ride type changes
+    useEffect(() => {
+        let multiplier = 1
+        if (rideType === 'return') multiplier = 1.8 // Discounted return
+        if (rideType === 'wait') multiplier = 1.5 // Waiting charge
+
+        setFare(Math.round(baseFare * passengers * multiplier))
+    }, [baseFare, passengers, rideType])
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    const handleConfirmBooking = async () => {
+        if (!user?.id) {
+            alert("Please login to book a ride")
+            return
+        }
+        setIsBooking(true)
+        try {
+            const rideId = await rideService.createRide({
+                passengerId: user.id,
+                passengerName: user.name,
+                pickup,
+                drop: destination,
+                fare,
+                rideType,
+                paymentMethod: 'cash' // Default for now
+            })
+            router.push(`/passenger/tracking?rideId=${rideId}`)
+        } catch (error) {
+            alert("Failed to create booking. Please try again.")
+        } finally {
+            setIsBooking(false)
+        }
+    }
 
     if (!isMounted) return <div className="h-screen w-full bg-background flex items-center justify-center text-primary font-black uppercase tracking-widest italic animate-pulse">Initializing Smarth...</div>
 
@@ -216,6 +262,19 @@ export default function BookRide() {
                                 </div>
                             </div>
 
+                            {/* Ride Type Selection */}
+                            <div className="flex gap-2">
+                                {['one-way', 'return', 'wait'].map((type) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setRideType(type as any)}
+                                        className={`flex-1 h-12 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border ${rideType === type ? 'bg-primary/10 border-primary text-primary italic' : 'bg-white/5 border-white/5 text-muted-foreground'}`}
+                                    >
+                                        {type.replace('-', ' ')}
+                                    </button>
+                                ))}
+                            </div>
+
                             {/* Vehicle Selection Grid */}
                             <div className="grid grid-cols-2 gap-4">
                                 <motion.button
@@ -290,14 +349,24 @@ export default function BookRide() {
                             {/* Main CTA */}
                             <Button
                                 variant="premium"
+                                disabled={isBooking}
                                 className="w-full h-20 text-2xl font-black rounded-[2rem] shadow-glow group relative overflow-hidden active:scale-[0.97]"
-                                onClick={() => router.push('/passenger/tracking')}
+                                onClick={handleConfirmBooking}
                             >
                                 <div className="flex items-center justify-center gap-3">
-                                    <span>CONFIRM RIDE</span>
-                                    <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1 }}>
-                                        <ArrowRight className="h-8 w-8" />
-                                    </motion.div>
+                                    {isBooking ? (
+                                        <>
+                                            <Loader2 className="h-8 w-8 animate-spin" />
+                                            <span>SECURING...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>CONFIRM RIDE</span>
+                                            <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1 }}>
+                                                <ArrowRight className="h-8 w-8" />
+                                            </motion.div>
+                                        </>
+                                    )}
                                 </div>
                             </Button>
                         </div>

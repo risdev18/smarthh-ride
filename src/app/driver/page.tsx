@@ -48,9 +48,15 @@ export default function DriverLogin() {
             const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier)
             setConfirmationResult(result)
             setOtpSent(true)
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error sending OTP:", error)
-            alert("Failed to send OTP. Please try again.")
+            let errorMessage = "Failed to send OTP. Please try again."
+            if (error.code === 'auth/quota-exceeded' || error.message?.includes('billing')) {
+                errorMessage = "SMS Quota Exceeded. Please use the demo number (9999999999) for testing."
+            } else if (error.code === 'auth/invalid-phone-number') {
+                errorMessage = "Invalid Phone Number."
+            }
+            alert(errorMessage)
         } finally {
             setLoading(false)
         }
@@ -61,16 +67,6 @@ export default function DriverLogin() {
         setLoading(true)
         try {
             await confirmationResult.confirm(otp)
-            // User signed in successfully.
-            // Check if user exists in DB? For now, assume flow:
-            // If new user -> Register
-            // If existing -> Dashboard
-            // For simplicity in this demo flow, we default to Register/Dashboard logic handled by next page or check
-
-            // For now, let's route to register to ensure we capture details, 
-            // or dashboard if we had a check. 
-            // Let's assume successful login goes to Register (which can check/skip) or Dashboard.
-            // Based on previous flow:
             router.push("/driver/register")
         } catch (error) {
             console.error("Error verifying OTP:", error)
@@ -81,30 +77,30 @@ export default function DriverLogin() {
     }
 
     return (
-        <div className="flex flex-col h-screen p-6 justify-between bg-black text-white selection:bg-primary selection:text-black">
+        <div className="flex flex-col min-h-[100dvh] p-6 justify-between bg-black text-white selection:bg-primary selection:text-black">
             <div id="recaptcha-container"></div> {/* Invisible Recaptcha */}
 
-            <div className="space-y-6 mt-10">
+            <div className="space-y-6 mt-6 md:mt-10">
                 <div className="flex flex-col items-center gap-4">
                     <div className="p-4 bg-zinc-900 rounded-full border border-zinc-800 shadow-[0_0_40px_rgba(34,197,94,0.2)]">
-                        <Truck className="h-16 w-16 text-green-500" />
+                        <Truck className="h-12 w-12 md:h-16 md:w-16 text-green-500" />
                     </div>
-                    <h1 className="text-4xl font-black text-center tracking-tighter">
+                    <h1 className="text-3xl md:text-4xl font-black text-center tracking-tighter">
                         SMARTH <span className="text-green-500">PARTNER</span>
                     </h1>
                 </div>
                 {!otpSent ? (
-                    <div className="text-center text-lg font-bold text-zinc-400">
+                    <div className="text-center text-base md:text-lg font-bold text-zinc-400">
                         Kamaiye Samman Se <br /> <span className="text-white">(Earn with Pride)</span>
                     </div>
                 ) : (
-                    <div className="text-center text-lg font-bold text-zinc-400">
+                    <div className="text-center text-base md:text-lg font-bold text-zinc-400">
                         Enter the OTP sent to <br /> <span className="text-white">+91 {phone}</span>
                     </div>
                 )}
             </div>
 
-            <div className="space-y-6 bg-zinc-900 p-6 rounded-3xl text-white border border-zinc-800 shadow-2xl">
+            <div className="space-y-6 bg-zinc-900 p-6 rounded-3xl text-white border border-zinc-800 shadow-2xl mb-8">
                 {!otpSent ? (
                     <>
                         <div className="space-y-2">

@@ -30,5 +30,20 @@ export const driverService = {
             console.error("Error updating ETA:", error);
             throw error;
         }
+    },
+
+    // Update real-time GPS location
+    async updateLocation(driverId: string, location: { lat: number; lng: number }) {
+        try {
+            const driverRef = doc(db, USERS_COLLECTION, driverId);
+            await updateDoc(driverRef, {
+                currentLocation: location,
+                lastLocationUpdate: new Date().toISOString()
+            });
+            return true;
+        } catch (error) {
+            console.error("Error updating location:", error);
+            throw error;
+        }
     }
 };
