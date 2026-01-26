@@ -4,7 +4,9 @@ import {
     signInWithPhoneNumber,
     ConfirmationResult,
     PhoneAuthProvider,
-    signInWithCredential
+    signInWithCredential,
+    GoogleAuthProvider,
+    signInWithPopup
 } from "@firebase/auth";
 import { collection, addDoc, getDocs, query, where, limit, serverTimestamp, doc, setDoc } from "@firebase/firestore";
 
@@ -218,5 +220,58 @@ export const otpAuthService = {
             };
         }
         return null;
+    },
+
+    // Google Sign In
+    async signInWithGoogle(role: UserRole): Promise<UnifiedUser> {
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+
+            // Allow email as identifier for Google users, but we still need phone number
+            // or we just use email as the unique key for lookup. 
+            // For this app, let's treat the email as the "phone" field or add email support.
+            // Simplified: Use email as the identifier
+
+            const identifier = user.email || user.phoneNumber || user.uid;
+
+            // Check if user exists
+            const q = query(
+                collection(db, COLLECTIONS[role]),
+                where("email", "==", user.email), // Check by email
+                limit(1)
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const doc = querySnapshot.docs[0];
+                return { id: doc.id, ...doc.data() } as UnifiedUser;
+            }
+
+            // New user create
+            const collectionName = COLLECTIONS[role];
+            const payload: any = {
+                name: user.displayName || "Google User",
+                email: user.email,
+                phone: user.phoneNumber || "", // Might be empty
+                role: role,
+                createdAt: serverTimestamp(),
+                isApproved: role === 'driver' ? false : true,
+                status: role === 'driver' ? 'incomplete' : 'approved',
+                authProvider: 'google'
+            };
+
+            const docRef = await addDoc(collection(db, collectionName), payload);
+            return {
+                id: docRef.id,
+                ...payload,
+                createdAt: new Date() // specific type match
+            } as UnifiedUser;
+
+        } catch (error: any) {
+            console.error("Error with Google Sign In:", error);
+            throw new Error(error.message || "Google Sign In Failed");
+        }
     }
 };

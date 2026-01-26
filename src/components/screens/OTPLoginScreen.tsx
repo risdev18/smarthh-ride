@@ -57,6 +57,27 @@ export default function OTPLoginScreen() {
         }
     };
 
+    const handleGoogleLogin = async () => {
+        setLoading(true);
+        try {
+            const user = await otpAuthService.signInWithGoogle(role);
+            setUser({
+                id: user.id || '',
+                name: user.name,
+                phone: user.phone,
+                role: user.role,
+                vehicleNumber: user.vehicleNumber,
+                isApproved: user.isApproved,
+                status: (user.status as 'pending' | 'approved' | 'rejected' | 'incomplete' | 'offline' | 'online') || 'approved'
+            });
+        } catch (error: any) {
+            console.error("Google Login Error:", error);
+            alert(error.message || 'Google Login Failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleVerifyOTP = async () => {
         if (otp.length !== 6) {
             alert('Please enter a valid 6-digit OTP');
@@ -290,6 +311,24 @@ export default function OTPLoginScreen() {
                                             SEND OTP <ArrowRight className="ml-2" />
                                         </>
                                     )}
+                                </Button>
+
+                                <div className="relative py-2">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <span className="w-full border-t border-slate-700"></span>
+                                    </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-slate-900 px-2 text-slate-400 font-bold tracking-widest">Or continue with</span>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    onClick={handleGoogleLogin}
+                                    disabled={loading}
+                                    className="w-full h-14 bg-white text-black font-bold text-lg rounded-2xl hover:bg-slate-200 transition-colors"
+                                >
+                                    <img src="https://www.google.com/favicon.ico" alt="Google" className="w-6 h-6 mr-3" />
+                                    Google
                                 </Button>
                             </motion.div>
                         )}
