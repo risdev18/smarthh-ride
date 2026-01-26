@@ -78,6 +78,22 @@ export default function OTPLoginScreen() {
         }
     };
 
+    const handleGuestLogin = () => {
+        setLoading(true);
+        // Simulate guest login
+        setTimeout(() => {
+            setUser({
+                id: `guest_${Math.random().toString(36).substr(2, 9)}`,
+                name: "Guest User",
+                phone: "",
+                role: "passenger",
+                isApproved: true,
+                status: 'approved'
+            });
+            setLoading(false);
+        }, 800);
+    };
+
     const handleVerifyOTP = async () => {
         if (otp.length !== 6) {
             alert('Please enter a valid 6-digit OTP');
@@ -330,6 +346,16 @@ export default function OTPLoginScreen() {
                                     <img src="https://www.google.com/favicon.ico" alt="Google" className="w-6 h-6 mr-3" />
                                     Google
                                 </Button>
+
+                                <div className="pt-2">
+                                    <button
+                                        onClick={handleGuestLogin}
+                                        disabled={loading}
+                                        className="w-full text-slate-500 font-bold text-sm hover:text-white transition-colors uppercase tracking-widest"
+                                    >
+                                        Skip & Continue as Guest
+                                    </button>
+                                </div>
                             </motion.div>
                         )}
 

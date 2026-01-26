@@ -37,12 +37,30 @@ export default function PassengerHome() {
 
             {/* Top Bar - Minimal */}
             <div className="relative z-20 p-4 pt-8 flex items-center justify-between">
-                <button
-                    onClick={() => {/* Open menu */ }}
-                    className="h-12 w-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
-                >
-                    <Menu className="h-6 w-6 text-slate-800" />
-                </button>
+                <div className="relative group">
+                    <button
+                        className="h-12 w-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+                    >
+                        <Menu className="h-6 w-6 text-slate-800" />
+                    </button>
+
+                    {/* Simple Logout Dropdown */}
+                    <div className="absolute top-14 left-0 w-48 bg-white rounded-2xl shadow-xl p-2 hidden group-focus-within:block">
+                        <div className="px-4 py-2 border-b border-slate-100 mb-2">
+                            <p className="font-bold text-sm">{user.name}</p>
+                            <p className="text-xs text-slate-500">{user.phone}</p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                logout();
+                                router.push("/");
+                            }}
+                            className="w-full text-left px-4 py-2 text-red-500 font-bold hover:bg-red-50 rounded-xl transition-colors text-sm"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </div>
 
                 {/* Small "No Surge" Badge */}
                 <div className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm">
