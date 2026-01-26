@@ -14,6 +14,7 @@ export interface Ride {
     fare: number;
     status: 'pending' | 'accepted' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
     paymentMethod: 'cash' | 'upi';
+    rideType?: 'one-way' | 'return' | 'wait';
     createdAt: any;
     cancelReason?: string;
 }
