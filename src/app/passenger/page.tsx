@@ -4,15 +4,13 @@ import dynamic from "next/dynamic"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { Search, MapPin, Navigation, LogOut, User as UserIcon } from "lucide-react"
+import { Search, MapPin, Navigation, Menu } from "lucide-react"
 import { useUserStore } from "@/lib/store/useUserStore"
 
 // Dynamic import for Map to avoid SSR window error
 const Map = dynamic(() => import("@/components/map/MapComponent"), {
     ssr: false,
-    loading: () => <div className="h-full w-full bg-muted animate-pulse flex items-center justify-center">Loading Map...</div>
+    loading: () => <div className="h-full w-full bg-slate-200 animate-pulse flex items-center justify-center text-slate-600 font-bold">Loading Map...</div>
 })
 
 export default function PassengerHome() {
@@ -31,82 +29,81 @@ export default function PassengerHome() {
     if (!user) return null
 
     return (
-        <div className="relative h-screen w-full flex flex-col font-sans">
-            {/* Full Bleed Map Background */}
+        <div className="relative h-screen w-full flex flex-col overflow-hidden">
+            {/* FULL-SCREEN MAP */}
             <div className="absolute inset-0 z-0">
                 <Map center={location} />
-                <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/80 pointer-events-none"></div>
             </div>
 
-            {/* Top Navigation Bar (Glassmorphism) */}
-            <div className="relative z-20 p-6 pt-12">
-                <Card className="bg-slate-900/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden">
-                    <div className="flex items-center p-4 gap-4">
-                        <div className="h-12 w-12 bg-primary/20 border border-primary/20 rounded-2xl flex items-center justify-center text-primary">
-                            <MapPin className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Your Presence</p>
-                            <h2 className="font-black text-white uppercase italic tracking-tight truncate leading-none">Shivaji Nagar, Pune</h2>
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-12 w-12 rounded-2xl bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
-                            onClick={() => logout()}
-                        >
-                            <LogOut className="h-5 w-5" />
-                        </Button>
-                    </div>
-                </Card>
+            {/* Top Bar - Minimal */}
+            <div className="relative z-20 p-4 pt-8 flex items-center justify-between">
+                <button
+                    onClick={() => {/* Open menu */ }}
+                    className="h-12 w-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+                >
+                    <Menu className="h-6 w-6 text-slate-800" />
+                </button>
+
+                {/* Small "No Surge" Badge */}
+                <div className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm">
+                    ✓ No surge. Fixed fare.
+                </div>
             </div>
 
-            {/* Bottom Action Sheet */}
-            <div className="mt-auto relative z-20 p-6 pb-12 space-y-6">
+            {/* Center - Blue Dot (User Location) - Simulated */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                <div className="relative">
+                    <div className="h-6 w-6 bg-blue-500 rounded-full border-4 border-white shadow-xl animate-pulse"></div>
+                    <div className="absolute inset-0 h-6 w-6 bg-blue-400 rounded-full animate-ping opacity-75"></div>
+                </div>
+            </div>
+
+            {/* Bottom - "Where to?" Input + Quick Actions */}
+            <div className="mt-auto relative z-20 p-4 pb-8 space-y-4">
+                {/* Recenter Button */}
                 <div className="flex justify-end">
-                    <Button size="icon" className="h-14 w-14 rounded-full bg-white text-black shadow-2xl hover:scale-110 active:scale-90 transition-all">
-                        <Navigation className="h-7 w-7" />
-                    </Button>
+                    <button className="h-14 w-14 rounded-full bg-white shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-transform">
+                        <Navigation className="h-7 w-7 text-slate-800" />
+                    </button>
                 </div>
 
-                <Card className="bg-white rounded-[3.5rem] p-8 shadow-[0_-20px_60px_rgba(0,0,0,0.4)] border-0">
-                    <div className="space-y-8">
-                        <div>
-                            <h2 className="text-4xl font-black text-slate-950 uppercase italic tracking-tighter leading-none mb-2">Ready to move</h2>
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Enter your destination to begin</p>
+                {/* Main Input Card */}
+                <div className="bg-white rounded-3xl p-6 shadow-2xl space-y-4">
+                    {/* Where to? Input */}
+                    <div className="relative">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                            <Search className="h-6 w-6 text-yellow-500" />
                         </div>
+                        <input
+                            readOnly
+                            className="w-full h-16 bg-slate-50 border-2 border-slate-200 focus:border-yellow-500 rounded-2xl pl-14 pr-4 text-lg font-bold text-slate-900 placeholder:text-slate-400 outline-none cursor-pointer transition-all"
+                            placeholder="Where to?"
+                            onClick={() => router.push('/passenger/book')}
+                        />
+                    </div>
 
-                        <div className="relative group">
-                            <div className="absolute left-6 top-1/2 -translate-y-1/2 h-10 w-10 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 group-focus-within:bg-primary/20 group-focus-within:text-primary transition-all">
-                                <Search className="h-6 w-6" />
-                            </div>
-                            <input
-                                readOnly
-                                className="w-full h-18 bg-slate-50 border-2 border-transparent focus:border-primary/20 rounded-[2rem] pl-20 pr-8 text-xl font-black text-slate-900 placeholder:text-slate-300 outline-none cursor-pointer transition-all shadow-inner"
-                                placeholder="Where to?"
-                                onClick={() => router.push('/passenger/book')}
-                            />
-                        </div>
-
-                        <div className="flex gap-3 overflow-x-auto no-scrollbar py-2">
+                    {/* Recent/Quick Locations - 1 TAP */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide px-2">Quick Access</p>
+                        <div className="grid grid-cols-2 gap-2">
                             {[
-                                { name: 'Home', icon: '🏠' },
-                                { name: 'Office', icon: '💼' },
-                                { name: 'Mall', icon: '🛒' },
-                                { name: 'Airport', icon: '✈️' }
+                                { name: 'Hospital', icon: '🏥' },
+                                { name: 'Railway Station', icon: '🚉' },
+                                { name: 'Market', icon: '🛒' },
+                                { name: 'Bus Stand', icon: '🚌' }
                             ].map((place) => (
                                 <button
                                     key={place.name}
                                     onClick={() => router.push('/passenger/book')}
-                                    className="flex items-center gap-3 bg-slate-50 border border-slate-100 px-6 py-4 rounded-3xl whitespace-nowrap hover:bg-slate-100 transition-all group"
+                                    className="flex items-center gap-2 bg-slate-50 hover:bg-yellow-50 border border-slate-200 hover:border-yellow-400 px-4 py-3 rounded-xl transition-all active:scale-95"
                                 >
-                                    <span className="text-xl group-hover:scale-125 transition-transform">{place.icon}</span>
-                                    <span className="font-black text-slate-900 uppercase tracking-tight text-sm">{place.name}</span>
+                                    <span className="text-2xl">{place.icon}</span>
+                                    <span className="font-bold text-slate-900 text-sm">{place.name}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
-                </Card>
+                </div>
             </div>
         </div>
     )
