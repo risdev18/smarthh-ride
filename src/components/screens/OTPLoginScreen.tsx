@@ -33,6 +33,13 @@ export default function OTPLoginScreen() {
             return;
         }
 
+        // Demo Backdoor mechanism
+        if (phone === "9999999999") {
+            setStep('otp');
+            alert('Demo Mode: OTP sent!');
+            return;
+        }
+
         setLoading(true);
         try {
             await otpAuthService.sendOTP(phone);
@@ -40,7 +47,11 @@ export default function OTPLoginScreen() {
             alert('OTP sent to your phone!');
         } catch (error: any) {
             console.error(error);
-            alert(error.message || 'Failed to send OTP');
+            let errorMessage = error.message || 'Failed to send OTP';
+            if (error.code === 'auth/quota-exceeded' || errorMessage.toLowerCase().includes('billing')) {
+                errorMessage = "SMS Quota Exceeded. Please use the demo number (9999999999) for testing.";
+            }
+            alert(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -139,13 +150,13 @@ export default function OTPLoginScreen() {
     // Admin Login UI
     if (showAdminLogin) {
         return (
-            <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
+            <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4 overflow-y-auto">
                 <div id="recaptcha-container"></div>
 
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="w-full max-w-md space-y-6"
+                    className="w-full max-w-md space-y-6 my-10"
                 >
                     <div className="text-center">
                         <ShieldCheck className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
@@ -186,17 +197,17 @@ export default function OTPLoginScreen() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-[100dvh] bg-slate-950 text-white flex flex-col items-center justify-center p-4 relative overflow-y-auto">
             {/* reCAPTCHA container */}
             <div id="recaptcha-container"></div>
 
             {/* Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 via-transparent to-orange-500/5 opacity-40"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 via-transparent to-orange-500/5 opacity-40 pointer-events-none"></div>
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="z-10 w-full max-w-md space-y-8"
+                className="z-10 w-full max-w-md space-y-6 md:space-y-8 my-6"
             >
                 {/* Logo */}
                 <div className="text-center">
@@ -208,7 +219,7 @@ export default function OTPLoginScreen() {
                     >
                         <Car className="w-10 h-10 text-white" strokeWidth={2.5} />
                     </motion.div>
-                    <h1 className="text-4xl font-black mb-2">SmarthRides</h1>
+                    <h1 className="text-3xl md:text-4xl font-black mb-2">SmarthRides</h1>
                     <p className="text-slate-400 font-semibold">Aapla Shehar, Aapli Auto</p>
                 </div>
 
@@ -238,7 +249,7 @@ export default function OTPLoginScreen() {
                 </div>
 
                 {/* Auth Form */}
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 space-y-6">
+                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 space-y-6">
                     <AnimatePresence mode="wait">
                         {/* Step 1: Phone Number */}
                         {step === 'phone' && (
@@ -303,7 +314,7 @@ export default function OTPLoginScreen() {
                                     maxLength={6}
                                     value={otp}
                                     onChange={(e) => setOTP(e.target.value.replace(/\D/g, ''))}
-                                    className="h-16 bg-slate-950/50 border-slate-800 rounded-2xl text-center text-3xl tracking-[1em] font-bold"
+                                    className="h-16 bg-slate-950/50 border-slate-800 rounded-2xl text-center text-2xl md:text-3xl tracking-[0.5em] md:tracking-[1em] font-bold px-2"
                                 />
 
                                 <Button
