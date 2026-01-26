@@ -39,6 +39,11 @@ export interface RideRequest {
     driverPhone?: string;
     createdAt: any;
     otp: string;
+    // New fields
+    passengers?: number;
+    landmark?: string;
+    rideType?: 'one-way' | 'return';
+    isCallRequest?: boolean;
 }
 
 const RIDES_COLLECTION = "rides";

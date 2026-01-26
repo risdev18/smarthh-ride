@@ -40,6 +40,9 @@ export default function BookRide() {
     const [pickup, setPickup] = useState("Shivaji Nagar, Pune")
     const [destination, setDestination] = useState("")
 
+    const [passengers, setPassengers] = useState(1)
+    const [landmark, setLandmark] = useState("")
+
     const handleConfirm = async () => {
         if (!user) return
         setLoading(true)
@@ -49,7 +52,7 @@ export default function BookRide() {
                 passengerName: user.name,
                 passengerPhone: user.phone,
                 pickup: {
-                    address: pickup,
+                    address: pickup + (landmark ? ` (Near ${landmark})` : ""),
                     lat: 18.5204 + (Math.random() * 0.01 - 0.005),
                     lng: 73.8567 + (Math.random() * 0.01 - 0.005)
                 },
@@ -59,6 +62,8 @@ export default function BookRide() {
                     lng: 73.8567 + (Math.random() * 0.04 - 0.02)
                 },
                 fare: offer,
+                // Additional meta data can be added here if backend supports it
+                passengers: passengers
             })
             router.push(`/passenger/tracking?rideId=${rideId}`)
         } catch (e) {
@@ -67,11 +72,16 @@ export default function BookRide() {
         }
     }
 
+    // Function to simulate calling a driver
+    const handleCallDriver = () => {
+        alert("Connecting you to a nearby driver...");
+    };
+
     if (!user) return null
 
     return (
         <div className="relative h-screen w-full overflow-hidden bg-slate-950 font-sans">
-
+            {/* ... (Persistent Map and Header remain same) ... */}
             {/* PERSISTENT MAP BACKGROUND */}
             <div className="absolute inset-0 z-0">
                 <Map />
@@ -121,6 +131,16 @@ export default function BookRide() {
                                 </div>
                             </div>
 
+                            {/* NEW: LANDMARK INPUT */}
+                            <div className="ml-10">
+                                <Input
+                                    placeholder="Enter Landmark (e.g. Near Temple)"
+                                    value={landmark}
+                                    onChange={(e) => setLandmark(e.target.value)}
+                                    className="bg-white border-0 h-10 px-4 text-slate-600 font-bold text-sm focus-visible:ring-1 focus-visible:ring-slate-200 placeholder:text-slate-300 rounded-xl w-full shadow-sm"
+                                />
+                            </div>
+
                             <div className="h-[1px] bg-slate-200 ml-10"></div>
 
                             <div className="flex items-center gap-4 relative z-10">
@@ -152,6 +172,7 @@ export default function BookRide() {
 
                         {/* Recent & Suggestions */}
                         <div className="space-y-8 flex-1">
+                            {/* ... (Recents code remains same) ... */}
                             <section className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -242,6 +263,20 @@ export default function BookRide() {
                                 </div>
                             </div>
 
+                            {/* NEW: PASSENGER COUNT */}
+                            <div className="flex items-center gap-4">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Passengers:</p>
+                                {[1, 2, 3].map(n => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setPassengers(n)}
+                                        className={`h-8 w-8 rounded-full font-black text-sm ${passengers === n ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}
+                                    >
+                                        {n}
+                                    </button>
+                                ))}
+                            </div>
+
                             <div className="bg-slate-50 border border-slate-100 rounded-[2.5rem] p-6 shadow-inner space-y-6">
                                 <div>
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1 flex items-center gap-2">
@@ -269,7 +304,7 @@ export default function BookRide() {
                                                     type="number"
                                                     value={offer}
                                                     onChange={(e) => setOffer(Number(e.target.value))}
-                                                    className="bg-transparent text-5xl font-black text-slate-950 w-32 outline-none italic tracking-tighter"
+                                                    className="bg-transparent text-5xl font-black text-slate-900 w-32 outline-none italic tracking-tighter"
                                                 />
                                             </div>
                                         </div>
@@ -281,18 +316,29 @@ export default function BookRide() {
                                 </div>
                             </div>
 
-                            <Button
-                                className="w-full h-20 bg-slate-950 hover:bg-black text-white rounded-[2rem] font-black text-2xl uppercase tracking-tight shadow-xl shadow-slate-900/40 relative overflow-hidden group"
-                                onClick={handleConfirm}
-                                disabled={loading}
-                            >
-                                {loading ? <Loader2 /> : (
-                                    <>
-                                        <span className="relative z-10 flex items-center gap-3">CONFIRM BOOKING <ArrowLeft className="h-8 w-8 rotate-180 group-hover:translate-x-2 transition-transform" /></span>
-                                        <Sparkles className="absolute right-8 top-1/2 -translate-y-1/2 h-8 w-8 text-primary opacity-20 group-hover:opacity-100 transition-opacity animate-pulse" />
-                                    </>
-                                )}
-                            </Button>
+                            <div className="space-y-3">
+                                {/* NEW: CALL DRIVER BUTTON */}
+                                <Button
+                                    variant="outline"
+                                    className="w-full h-14 border-2 border-slate-200 text-slate-600 rounded-2xl font-bold uppercase tracking-wider hover:bg-slate-50"
+                                    onClick={handleCallDriver}
+                                >
+                                    📞 Call Nearby Driver First
+                                </Button>
+
+                                <Button
+                                    className="w-full h-20 bg-slate-950 hover:bg-black text-white rounded-[2rem] font-black text-2xl uppercase tracking-tight shadow-xl shadow-slate-900/40 relative overflow-hidden group"
+                                    onClick={handleConfirm}
+                                    disabled={loading}
+                                >
+                                    {loading ? <Loader2 /> : (
+                                        <>
+                                            <span className="relative z-10 flex items-center gap-3">CONFIRM BOOKING <ArrowLeft className="h-8 w-8 rotate-180 group-hover:translate-x-2 transition-transform" /></span>
+                                            <Sparkles className="absolute right-8 top-1/2 -translate-y-1/2 h-8 w-8 text-primary opacity-20 group-hover:opacity-100 transition-opacity animate-pulse" />
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     </motion.div>
                 )}
