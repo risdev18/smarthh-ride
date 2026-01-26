@@ -2,16 +2,24 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { MessageCircle, X, Phone, CarFront, HelpCircle, MapPin, AlertCircle, RefreshCw, BookOpen } from "lucide-react"
+import { MessageCircle, X, Phone, CarFront, HelpCircle, MapPin, AlertCircle, RefreshCw, BookOpen, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import AppGuide from "@/components/guide/AppGuide"
+
+interface QuickReply {
+    label: string;
+    action: string;
+    icon?: any;
+    className?: string; // For styling (red for emergency)
+}
 
 interface Message {
     id: string;
     text: string;
     sender: 'user' | 'bot';
     timestamp: Date;
-    isAction?: boolean; // If true, shows buttons
+    isAction?: boolean;
+    quickReplies?: QuickReply[]; // New: Buttons inside message
 }
 
 export default function SmartAssistant() {
@@ -36,6 +44,39 @@ export default function SmartAssistant() {
         }
     }, [messages, isOpen])
 
+    // --- HANDLE QUICK REPLIES (Calls, Location, etc) ---
+    const handleQuickReply = (reply: QuickReply) => {
+        if (reply.action.startsWith('tel:')) {
+            window.location.href = reply.action;
+            return;
+        }
+
+        if (reply.action === 'share_location') {
+            // Simulate sharing location
+            const userMsg: Message = {
+                id: Date.now().toString(),
+                text: "📍 Shared Current Location:\nLat: 18.5204, Lng: 73.8567\n(Near Shivaji Nagar)",
+                sender: 'user',
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, userMsg]);
+
+            setTimeout(() => {
+                const botMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    text: "Location Received ✅\nHelp is on the way. Please stay on the line.",
+                    sender: 'bot',
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, botMsg]);
+            }, 1000);
+            return;
+        }
+
+        // Default: Treat as normal text action
+        handleAction(reply.action);
+    };
+
     // --- RULE-BASED LOGIC ---
     const handleAction = (action: string) => {
         if (action === "📚 How to Use App?") {
@@ -52,10 +93,10 @@ export default function SmartAssistant() {
         };
         setMessages(prev => [...prev, userMsg]);
 
-        // 2. Bot Response Logic (Timeout for natural feel)
+        // 2. Bot Response Logic 
         setTimeout(() => {
             let botText = "";
-            let showOptions = false;
+            let replies: QuickReply[] = [];
 
             switch (action) {
                 case "🚖 Book Auto (रिक्षा बुक करा)":
@@ -65,8 +106,11 @@ export default function SmartAssistant() {
                     botText = "🔁 **Return Ride (परत येणे)**\n\nगावातून शहरात जाताना ड्रायव्हरला रिकामं परत यावं लागतं, म्हणून 'One Way' आणि 'Return' चे दर वेगळे असतात.\n\nरिटर्न राईड स्वस्त पडते! ✅";
                     break;
                 case "📞 Call Driver / Support":
-                    botText = "तुम्हाला कोणाशी बोलायचे आहे?";
-                    showOptions = true; // Sub-menu
+                    botText = "संपर्क साधा (Select Option):";
+                    replies = [
+                        { label: "Call Driver", action: "tel:9999999999", icon: Phone },
+                        { label: "Call Support", action: "tel:8468943268", icon: HelpCircle }
+                    ];
                     break;
                 case "❌ Problem / Help":
                     botText = "काय अडचण आहे?\n(What is the problem?)";
@@ -75,7 +119,12 @@ export default function SmartAssistant() {
                     botText = "माफ करा 🙏\nकधी कधी ट्रॅफिकमुळे उशीर होतो.\n\nकृपया ड्रायव्हरला थेट कॉल करा.";
                     break;
                 case "Emergency 🚨":
-                    botText = "🚨 **Emergency Help**\n\nस्थानिक पोलीस: 100\nसमर्थ हेल्पलाइन: +91 8468943268\n\nतुमचे लोकेशन शेअर करा.";
+                    botText = "🚨 **Emergency Help**\n\nखालील बटनावर क्लिक करा:";
+                    replies = [
+                        { label: "📞 Call Police (100)", action: "tel:100", className: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200" },
+                        { label: "📞 Helpline (+91...)", action: "tel:8468943268", className: "bg-green-100 text-green-700 border-green-200 hover:bg-green-200" },
+                        { label: "📍 Share My Location", action: "share_location", icon: MapPin, className: "bg-slate-100 text-slate-900 border-slate-200 hover:bg-slate-200" }
+                    ];
                     break;
                 default:
                     botText = "ठीक आहे. आणखी काही मदत हवी असल्यास सांगा. 🙏";
@@ -85,7 +134,8 @@ export default function SmartAssistant() {
                 id: (Date.now() + 1).toString(),
                 text: botText,
                 sender: 'bot',
-                timestamp: new Date()
+                timestamp: new Date(),
+                quickReplies: replies.length > 0 ? replies : undefined
             };
             setMessages(prev => [...prev, botMsg]);
 
@@ -117,7 +167,7 @@ export default function SmartAssistant() {
                         initial={{ opacity: 0, y: 100, scale: 0.8, transformOrigin: 'bottom right' }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 100, scale: 0.8 }}
-                        className="fixed bottom-24 right-6 w-[90vw] max-w-[360px] h-[550px] bg-white border-2 border-slate-900 rounded-[2rem] shadow-2xl z-[1000] flex flex-col overflow-hidden font-sans"
+                        className="fixed bottom-24 right-6 w-[90vw] max-w-[360px] h-[580px] bg-white border-2 border-slate-900 rounded-[2rem] shadow-2xl z-[1000] flex flex-col overflow-hidden font-sans"
                     >
                         {/* Header: "Local Auto Stand Helper" */}
                         <div className="bg-yellow-400 p-4 flex items-center gap-3 border-b-2 border-slate-900">
@@ -144,6 +194,22 @@ export default function SmartAssistant() {
                                         }`}>
                                         {msg.text}
                                     </div>
+
+                                    {/* QUICK REPLIES (Buttons inside message) */}
+                                    {msg.quickReplies && (
+                                        <div className="mt-2 flex flex-col gap-2 w-[85%]">
+                                            {msg.quickReplies.map((reply, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => handleQuickReply(reply)}
+                                                    className={`py-2 px-4 rounded-xl text-xs font-bold border flex items-center gap-2 transition-all active:scale-95 text-left ${reply.className || 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'}`}
+                                                >
+                                                    {reply.icon && <reply.icon className="h-4 w-4" />}
+                                                    {reply.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     {/* Timestamp */}
                                     <span className="text-[10px] text-slate-400 font-bold mt-1 px-1">

@@ -19,17 +19,17 @@ export default function AppGuide({ isOpen, onClose, defaultTab = 'passenger' }: 
         {
             title: "1. Pickup Location (कुठून जायचं?)",
             desc: "Use your GPS location or type a landmark like 'Hanuman Mandir'.",
-            img: "https://placehold.co/400x800/FFD700/000000/png?text=Pickup+Screen"
+            img: "/images/guide/guide_pickup.png"
         },
         {
             title: "2. Ride Type (कोणती ट्रिप?)",
             desc: "Select 'One Way' or 'Return'. Return rides save money!",
-            img: "https://placehold.co/400x800/FFD700/000000/png?text=Ride+Type+Selection"
+            img: "/images/guide/guide_ride_type.png"
         },
         {
             title: "3. Confirm & Call (पुष्टी करा)",
             desc: "See fixed fare. Call driver directly if needed.",
-            img: "https://placehold.co/400x800/FFD700/000000/png?text=Confirm+Screen"
+            img: "/images/guide/guide_confirm.png"
         }
     ]
 
@@ -37,17 +37,17 @@ export default function AppGuide({ isOpen, onClose, defaultTab = 'passenger' }: 
         {
             title: "1. Go Online (ऑनलाईन व्हा)",
             desc: "Tap the green button to start receiving rides.",
-            img: "https://placehold.co/400x800/000000/FFFFFF/png?text=Driver+Dashboard"
+            img: "/images/guide/guide_driver.png"
         },
         {
             title: "2. Accept Ride (राईड स्वीकारा)",
             desc: "See pickup & drop clearly. Call passenger first.",
-            img: "https://placehold.co/400x800/000000/FFFFFF/png?text=Ride+Request"
+            img: "/images/guide/guide_new_ride.png"
         },
         {
             title: "3. Earnings (कमाई)",
             desc: "Track your daily cash and trips instantly.",
-            img: "https://placehold.co/400x800/000000/FFFFFF/png?text=Earnings+Page"
+            img: "/images/guide/guide_earnings.png"
         }
     ]
 
