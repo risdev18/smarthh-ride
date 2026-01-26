@@ -95,17 +95,21 @@ export default function DriverDashboard() {
 
     // 5. Location Tracking
     useEffect(() => {
-        let watchId: number;
+        let watchId: number | undefined;
         if (status === 'online' && user?.id) {
             if ("geolocation" in navigator) {
                 watchId = navigator.geolocation.watchPosition(async (pos) => {
                     const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
                     setDriverLoc(loc)
                     await driverService.updateLocation(user.id!, loc)
-                }, null, { enableHighAccuracy: true })
+                }, (err) => console.error(err), { enableHighAccuracy: true })
             }
         }
-        return () => watchId && navigator.geolocation.clearWatch(watchId)
+        return () => {
+            if (watchId !== undefined) {
+                navigator.geolocation.clearWatch(watchId)
+            }
+        }
     }, [status, user?.id])
 
     // ACTIONS
