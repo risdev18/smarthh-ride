@@ -16,7 +16,9 @@ const Map = dynamic(() => import("@/components/map/MapComponent"), {
     loading: () => <div className="h-full w-full bg-background animate-pulse" />
 })
 
-export default function RideTracking() {
+import { Suspense } from "react"
+
+function RideTrackingContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const rideId = searchParams.get('rideId')
@@ -301,5 +303,13 @@ export default function RideTracking() {
                 </div>
             )}
         </div>
+    )
+}
+
+export default function RideTracking() {
+    return (
+        <Suspense fallback={<div className="h-screen w-full bg-background flex items-center justify-center text-primary font-black uppercase tracking-widest italic animate-pulse">Loading Radar...</div>}>
+            <RideTrackingContent />
+        </Suspense>
     )
 }

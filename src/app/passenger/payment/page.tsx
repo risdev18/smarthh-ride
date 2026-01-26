@@ -4,10 +4,12 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { IndianRupee, Star, ThumbsUp, CheckCircle, ArrowRight, User, Heart, MessageSquare } from "lucide-react"
+import { IndianRupee, Star, ThumbsUp, CheckCircle, ArrowRight, User, Heart, MessageSquare, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
-export default function PaymentFeedback() {
+import { Suspense } from "react"
+
+function PaymentFeedbackContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [rating, setRating] = useState(0)
@@ -44,7 +46,7 @@ export default function PaymentFeedback() {
 
     return (
         <div className="min-h-screen bg-background text-white p-6 font-sans flex flex-col justify-end pb-12">
-            <div className="space-y-8 max-w-md mx-auto w-full">
+            <div className="space-y-8 max-md mx-auto w-full">
                 {/* Fare Card */}
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
@@ -97,8 +99,8 @@ export default function PaymentFeedback() {
                                     >
                                         <Star
                                             className={`h-10 w-10 transition-colors ${(hoverRating >= star || rating >= star)
-                                                    ? 'fill-primary text-primary drop-shadow-[0_0_8px_rgba(245,200,66,0.3)]'
-                                                    : 'text-white/10'
+                                                ? 'fill-primary text-primary drop-shadow-[0_0_8px_rgba(245,200,66,0.3)]'
+                                                : 'text-white/10'
                                                 }`}
                                         />
                                     </motion.div>
@@ -137,5 +139,13 @@ export default function PaymentFeedback() {
 
             <p className="text-center text-[8px] font-black uppercase tracking-[0.5em] text-white/5 mt-12 italic">Samarth Ride - Vishwasacha Pravas v1.0</p>
         </div>
+    )
+}
+
+export default function PaymentFeedback() {
+    return (
+        <Suspense fallback={<div className="h-screen w-full bg-background flex flex-col items-center justify-center p-8 text-center"><Loader2 className="h-12 w-12 text-primary animate-spin" /></div>}>
+            <PaymentFeedbackContent />
+        </Suspense>
     )
 }

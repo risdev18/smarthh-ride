@@ -16,7 +16,9 @@ const Map = dynamic(() => import("@/components/map/MapComponent"), {
     loading: () => <div className="h-full w-full bg-background animate-pulse" />
 })
 
-export default function BookRide() {
+import { Suspense } from "react"
+
+function BookRideContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { user } = useUserStore()
@@ -383,5 +385,13 @@ export default function BookRide() {
             </div>
 
         </div>
+    )
+}
+
+export default function BookRide() {
+    return (
+        <Suspense fallback={<div className="h-screen w-full bg-background flex items-center justify-center text-primary font-black uppercase tracking-widest italic animate-pulse">Loading Smarth...</div>}>
+            <BookRideContent />
+        </Suspense>
     )
 }
