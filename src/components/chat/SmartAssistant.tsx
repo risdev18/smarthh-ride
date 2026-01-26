@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { MessageCircle, X, Phone, CarFront, HelpCircle, MapPin, AlertCircle, RefreshCw } from "lucide-react"
+import { MessageCircle, X, Phone, CarFront, HelpCircle, MapPin, AlertCircle, RefreshCw, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import AppGuide from "@/components/guide/AppGuide"
 
 interface Message {
     id: string;
@@ -15,6 +16,7 @@ interface Message {
 
 export default function SmartAssistant() {
     const [isOpen, setIsOpen] = useState(false)
+    const [showGuide, setShowGuide] = useState(false)
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
@@ -36,6 +38,11 @@ export default function SmartAssistant() {
 
     // --- RULE-BASED LOGIC ---
     const handleAction = (action: string) => {
+        if (action === "📚 How to Use App?") {
+            setShowGuide(true);
+            return;
+        }
+
         // 1. Add User Selection to Chat
         const userMsg: Message = {
             id: Date.now().toString(),
@@ -87,6 +94,8 @@ export default function SmartAssistant() {
 
     return (
         <>
+            <AppGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+
             {/* FLOATING ACTION BUTTON */}
             <motion.div
                 className="fixed bottom-6 right-6 z-[1000]"
@@ -147,6 +156,17 @@ export default function SmartAssistant() {
                         {/* BIG ACTION BUTTONS (No Typing needed mostly) */}
                         <div className="p-4 bg-white border-t border-slate-100">
                             <p className="text-[10px] uppercase font-black text-slate-400 mb-2 tracking-widest text-center">👇 Tap to Select (निवडा)</p>
+
+                            {/* NEW: App Guide Button Top */}
+                            <Button
+                                variant="default"
+                                className="w-full mb-3 bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-2 h-12 rounded-xl"
+                                onClick={() => handleAction("📚 How to Use App?")}
+                            >
+                                <BookOpen className="h-5 w-5 text-yellow-400" />
+                                <span className="font-bold">App Guide (ॲप कसे वापरावे?)</span>
+                            </Button>
+
                             <div className="grid grid-cols-2 gap-2">
                                 <Button variant="outline" className="h-auto py-3 flex flex-col gap-1 hover:bg-yellow-50 hover:border-yellow-400" onClick={() => handleAction("🚖 Book Auto (रिक्षा बुक करा)")}>
                                     <CarFront className="h-5 w-5 text-slate-900" />
