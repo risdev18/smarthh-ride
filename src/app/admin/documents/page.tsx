@@ -87,7 +87,7 @@ export default function DocumentManagement() {
                                                         type="checkbox"
                                                         className="hidden"
                                                         checked={doc.isMandatory}
-                                                        onChange={(e) => updateDocumentType(doc.id, { isApproved: e.target.checked })} // Note: store uses isMandatory usually but let's check field names
+                                                        onChange={(e) => updateDocumentType(doc.id, { isMandatory: e.target.checked })}
                                                     />
                                                     <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest group-hover/label:text-slate-400">Strict Enforcement</span>
                                                 </label>
