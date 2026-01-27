@@ -21,8 +21,12 @@ import {
     Filter,
     ChevronRight,
     ArrowUpRight,
-    MapPin
+    MapPin,
+    Users,
+    ChevronLeft,
+    Terminal
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
 export default function AdminDriversPage() {
     const [drivers, setDrivers] = useState<DriverData[]>([])
@@ -30,6 +34,14 @@ export default function AdminDriversPage() {
     const [selectedDriver, setSelectedDriver] = useState<DriverData | null>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState("")
+    const [isMobileView, setIsMobileView] = useState(false)
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobileView(window.innerWidth < 1024)
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
 
     useEffect(() => {
         const unsubscribe = driverService.listenToDrivers((updatedDrivers) => {
@@ -43,7 +55,7 @@ export default function AdminDriversPage() {
         if (!confirm(`Are you sure you want to ${status} this driver?`)) return
         try {
             await driverService.verifyDriver(driverId, status)
-            setSelectedDriver(null)
+            if (isMobileView) setSelectedDriver(null)
         } catch (e: any) {
             alert("Error updating status: " + e.message)
         }
@@ -51,173 +63,175 @@ export default function AdminDriversPage() {
 
     const filteredDrivers = drivers.filter(d =>
         d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.phone.includes(searchTerm)
+        d.phone.includes(searchTerm) ||
+        (d.vehicleNumber && d.vehicleNumber.toLowerCase().includes(searchTerm.toLowerCase()))
     )
 
     // Modal to show Base64 image
     const PreviewModal = () => {
         if (!previewUrl) return null;
         return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-in fade-in" onClick={() => setPreviewUrl(null)}>
-                <div className="relative max-w-5xl max-h-[90vh] w-full bg-slate-900 rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-                    <div className="p-6 border-b border-white/5 flex justify-between items-center bg-slate-900/50 backdrop-blur">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/95 backdrop-blur-2xl"
+                onClick={() => setPreviewUrl(null)}
+            >
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="relative max-w-5xl max-h-[90vh] w-full bg-slate-900 rounded-[2rem] sm:rounded-[3rem] border border-white/10 overflow-hidden shadow-2xl flex flex-col"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="p-4 sm:p-6 border-b border-white/5 flex justify-between items-center">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center">
                                 <FileText className="text-primary h-5 w-5" />
                             </div>
-                            <h3 className="font-black uppercase tracking-tight">Document Verification</h3>
+                            <h3 className="font-black uppercase tracking-tight text-sm sm:text-base">SECURE DATA VIEW</h3>
                         </div>
-                        <Button variant="ghost" className="rounded-full h-10 w-10 hover:bg-white/10" onClick={() => setPreviewUrl(null)}>
+                        <button onClick={() => setPreviewUrl(null)} className="h-10 w-10 bg-white/5 rounded-full flex items-center justify-center text-slate-500 hover:text-white transition-colors">
                             <XCircle className="w-6 h-6" />
-                        </Button>
+                        </button>
                     </div>
-                    <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-black/50">
-                        <img src={previewUrl} alt="Document" className="max-w-full h-auto rounded-xl shadow-2xl" />
+                    <div className="flex-1 overflow-auto p-2 sm:p-4 flex items-center justify-center bg-black/50">
+                        <img src={previewUrl} alt="Document" className="max-w-full h-auto rounded-xl shadow-2xl ring-1 ring-white/10" />
                     </div>
-                    <div className="p-6 border-t border-white/5 bg-slate-900/50 text-center">
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Enterprise Document Viewer High-Security Connection</p>
-                    </div>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
         )
     }
 
     return (
-        <div className="space-y-8 pb-20">
-            <PreviewModal />
+        <div className="space-y-6 sm:space-y-8 pb-20 max-w-[1600px] mx-auto">
+            <AnimatePresence>
+                <PreviewModal />
+            </AnimatePresence>
 
             {/* Stats Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                 {[
-                    { label: 'Total Drivers', value: drivers.length, icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                    { label: 'Pending Approval', value: drivers.filter(d => d.status === 'pending').length, icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+                    { label: 'Total Fleet', value: drivers.length, icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                    { label: 'Pending', value: drivers.filter(d => d.status === 'pending').length, icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
                     { label: 'Verified', value: drivers.filter(d => d.status === 'approved').length, icon: ShieldCheck, color: 'text-green-500', bg: 'bg-green-500/10' },
-                    { label: 'Fleet Active', value: drivers.filter(d => d.status === 'online').length, icon: Car, color: 'text-primary', bg: 'bg-primary/10' }
+                    { label: 'Active Hub', value: drivers.filter(d => d.status === 'online').length, icon: Terminal, color: 'text-primary', bg: 'bg-primary/10' }
                 ].map((stat, i) => (
-                    <Card key={i} className="bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden group">
-                        <CardContent className="p-6 flex items-center gap-4">
-                            <div className={`h-14 w-14 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center transition-transform group-hover:scale-110`}>
-                                <stat.icon className="h-7 w-7" />
+                    <Card key={i} className="bg-slate-900/40 border-white/5 rounded-2xl sm:rounded-[2.5rem] overflow-hidden group shadow-2xl">
+                        <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center sm:items-center gap-3 sm:gap-4">
+                            <div className={`h-10 w-10 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center transition-transform group-hover:scale-110`}>
+                                <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{stat.label}</p>
-                                <p className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">{stat.value}</p>
+                            <div className="text-center sm:text-left">
+                                <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500">{stat.label}</p>
+                                <p className="text-xl sm:text-3xl font-black tracking-tighter text-white">{stat.value}</p>
                             </div>
                         </CardContent>
                     </Card>
                 ))}
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 items-start">
                 {/* List Panel */}
-                <div className="flex-1 space-y-4">
-                    <div className="flex items-center gap-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2 pl-4 rounded-[2rem] shadow-sm">
-                        <Search className="h-5 w-5 text-slate-400" />
+                <div className={`flex-1 w-full space-y-4 ${selectedDriver && isMobileView ? 'hidden' : 'block'}`}>
+                    <div className="flex items-center gap-3 bg-slate-900/60 border border-white/5 p-2 pl-4 rounded-2xl sm:rounded-[2rem] shadow-2xl">
+                        <Search className="h-5 w-5 text-slate-600" />
                         <input
-                            placeholder="Search by name, phone or vehicle..."
-                            className="bg-transparent flex-1 outline-none font-bold text-sm h-12"
+                            placeholder="Find pilots or vehicles..."
+                            className="bg-transparent flex-1 outline-none font-bold text-xs sm:text-sm h-10 sm:h-12 text-white placeholder:text-slate-700"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
-                        <Button variant="ghost" className="rounded-2xl h-10 px-4 text-slate-500 font-black text-[10px] uppercase">
-                            <Filter className="mr-2 h-4 w-4" /> Filter
-                        </Button>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3">
                         {filteredDrivers.map(d => (
-                            <div
+                            <motion.div
+                                layoutId={d.id}
                                 key={d.id}
                                 onClick={() => setSelectedDriver(d)}
-                                className={`flex items-center gap-4 p-5 bg-white dark:bg-slate-900 border ${selectedDriver?.id === d.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-slate-200'} rounded-[1.8rem] transition-all cursor-pointer group animate-in slide-in-from-left duration-300`}
+                                className={`flex items-center gap-4 p-4 sm:p-5 bg-slate-900/40 border transition-all cursor-pointer group rounded-[1.5rem] sm:rounded-[2rem] ${selectedDriver?.id === d.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-white/5 hover:border-white/10'}`}
                             >
-                                <div className="h-14 w-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm relative">
-                                    <User className="h-8 w-8 text-slate-400" />
-                                    {d.status === 'online' && <div className="absolute top-1 right-1 h-3 w-3 rounded-full bg-green-500 ring-4 ring-white dark:ring-slate-900"></div>}
+                                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-slate-950 flex items-center justify-center border border-white/5 relative">
+                                    <User className="h-6 w-6 sm:h-8 sm:w-8 text-slate-700" />
+                                    {d.status === 'online' && <div className="absolute top-0 right-0 h-3 w-3 rounded-full bg-primary ring-2 ring-slate-950"></div>}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="font-black text-lg text-slate-900 dark:text-white truncate uppercase tracking-tight">{d.name}</h3>
-                                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${d.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                d.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                    'bg-slate-100 text-slate-500'
-                                            }`}>
-                                            {d.status || 'NEW'}
-                                        </span>
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <h3 className="font-black text-sm sm:text-lg text-white truncate uppercase tracking-tight">{d.name}</h3>
+                                        <div className={`h-1.5 w-1.5 rounded-full ${d.status === 'approved' ? 'bg-green-500' : d.status === 'pending' ? 'bg-yellow-500' : 'bg-slate-700'}`} />
                                     </div>
-                                    <p className="text-xs text-slate-500 font-bold tracking-wide">{d.phone} • {d.vehicleNumber || 'No VH'}</p>
+                                    <p className="text-[10px] sm:text-xs text-slate-500 font-bold tracking-widest uppercase">{d.phone} • {d.vehicleNumber || 'NO ASSET'}</p>
                                 </div>
-                                <div className="text-right flex flex-col items-end gap-1">
-                                    <ArrowUpRight className={`h-5 w-5 transition-all ${selectedDriver?.id === d.id ? 'text-primary transform rotate-45 scale-125' : 'text-slate-300 group-hover:text-slate-500 group-hover:translate-x-1'}`} />
-                                    <p className="text-[10px] font-medium text-slate-400">{new Date(d.createdAt as any).toLocaleDateString()}</p>
-                                </div>
-                            </div>
+                                <ArrowUpRight className={`h-4 w-4 sm:h-5 sm:w-5 transition-all ${selectedDriver?.id === d.id ? 'text-primary rotate-45 scale-125' : 'text-slate-800'}`} />
+                            </motion.div>
                         ))}
                     </div>
                 </div>
 
                 {/* Detail Panel */}
-                <div className="w-full lg:w-[460px]">
+                <div className={`w-full lg:w-[460px] lg:sticky lg:top-8 ${selectedDriver ? 'block' : 'hidden lg:block'}`}>
                     {selectedDriver ? (
-                        <div className="sticky top-8 space-y-6">
-                            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-xl overflow-hidden ring-1 ring-slate-100">
-                                <div className="h-32 bg-slate-50 dark:bg-slate-800 relative">
-                                    <div className="absolute -bottom-12 left-8 h-24 w-24 rounded-3xl bg-white dark:bg-slate-900 border-8 border-white dark:border-slate-900 shadow-xl overflow-hidden flex items-center justify-center">
-                                        <User className="h-12 w-12 text-slate-300" />
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                            <Card className="bg-slate-900 border border-white/5 rounded-[2.5rem] sm:rounded-[3.5rem] shadow-2xl overflow-hidden ring-1 ring-white/5">
+                                <div className="h-24 sm:h-32 bg-slate-950 relative p-4 sm:p-6">
+                                    <div className="flex justify-between items-start">
+                                        <button
+                                            onClick={() => setSelectedDriver(null)}
+                                            className="h-10 w-10 sm:h-12 sm:w-12 bg-white/5 rounded-2xl flex items-center justify-center text-slate-500 hover:text-white transition-colors"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" />
+                                        </button>
+                                        <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border ${selectedDriver.status === 'approved' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'}`}>
+                                            {selectedDriver.status}
+                                        </div>
                                     </div>
-                                    <div className="absolute top-4 right-4 flex gap-2">
-                                        <Button size="sm" variant="outline" className="rounded-xl h-9 bg-white/20 backdrop-blur text-xs font-black border-white/20" onClick={() => setSelectedDriver(null)}>
-                                            <ChevronRight className="rotate-180 h-4 w-4 mr-1" /> BACK
-                                        </Button>
+                                    <div className="absolute -bottom-10 left-8 sm:left-10 h-20 w-20 sm:h-24 sm:w-24 rounded-3xl bg-slate-900 border-4 border-slate-900 shadow-2xl flex items-center justify-center">
+                                        <User className="h-10 w-10 sm:h-12 sm:w-12 text-slate-700" />
                                     </div>
                                 </div>
 
-                                <CardContent className="pt-16 pb-8 px-8 space-y-8">
+                                <CardContent className="pt-14 sm:pt-16 pb-8 px-6 sm:px-10 space-y-8 sm:space-y-10">
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Driver Profile</p>
-                                        <h2 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white uppercase italic">{selectedDriver.name}</h2>
-                                        <div className="flex items-center gap-4 mt-2">
-                                            <div className="flex items-center gap-1.5 text-slate-500 font-bold text-xs uppercase">
-                                                <Phone className="h-3.5 w-3.5" /> {selectedDriver.phone}
+                                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">PIOT IDENTIFICATION</p>
+                                        <h2 className="text-2xl sm:text-4xl font-black tracking-tighter text-white uppercase italic leading-none">{selectedDriver.name}</h2>
+                                        <div className="flex flex-wrap items-center gap-4 mt-4">
+                                            <div className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-widest">
+                                                <Phone className="h-3 w-3 text-primary" /> {selectedDriver.phone}
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-slate-500 font-bold text-xs uppercase">
-                                                <Car className="h-3.5 w-3.5" /> {selectedDriver.vehicleNumber || 'N/A'}
+                                            <div className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-widest">
+                                                <Car className="h-3 w-3 text-primary" /> {selectedDriver.vehicleNumber || 'UNLINKED'}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Document Section */}
                                     <div className="space-y-4">
-                                        <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
-                                            <FileText className="h-4 w-4 text-primary" /> Verification Documents
+                                        <h3 className="text-[10px] font-black uppercase text-slate-600 flex items-center gap-2 tracking-[0.3em]">
+                                            <div className="h-1 w-4 bg-primary rounded-full" /> CREDENTIAL GRID
                                         </h3>
-                                        <div className="space-y-3">
+                                        <div className="grid grid-cols-1 gap-3">
                                             {[
                                                 { label: 'Driving License', key: 'licenseUrl' },
-                                                { label: 'RC Book Front', key: 'rcBookUrl' },
+                                                { label: 'RC Front', key: 'rcBookUrl' },
                                                 { label: 'Insurance Copy', key: 'insuranceUrl' }
                                             ].map((docType) => {
                                                 const url = selectedDriver.documents?.[docType.key as keyof typeof selectedDriver.documents];
                                                 const isUploaded = !!url;
                                                 return (
-                                                    <div key={docType.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-2xl group transition-all hover:bg-white dark:hover:bg-slate-700">
+                                                    <div key={docType.key} className="flex items-center justify-between p-4 bg-slate-950 border border-white/5 rounded-2xl">
                                                         <div>
-                                                            <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">{docType.label}</span>
-                                                            <p className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${isUploaded ? 'text-green-500' : 'text-slate-400'}`}>
-                                                                {isUploaded ? '✓ SYNCED' : 'NOT FOUND'}
+                                                            <span className="text-[11px] font-black text-slate-300 uppercase tracking-tight">{docType.label}</span>
+                                                            <p className={`text-[8px] font-black uppercase tracking-widest mt-0.5 ${isUploaded ? 'text-primary' : 'text-slate-700'}`}>
+                                                                {isUploaded ? 'AUTHORIZED' : 'MISSING'}
                                                             </p>
                                                         </div>
-                                                        {isUploaded ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="h-9 px-4 rounded-xl font-black bg-white dark:bg-slate-900 text-primary border-primary/20 hover:bg-primary shadow-sm active:scale-95 transition-all text-[10px] uppercase"
+                                                        {isUploaded && (
+                                                            <button
                                                                 onClick={() => setPreviewUrl(url as string)}
+                                                                className="h-10 px-5 bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary border border-primary/20 hover:bg-primary/10 transition-colors"
                                                             >
-                                                                <Eye className="w-4 h-4 mr-2" /> View
-                                                            </Button>
-                                                        ) : (
-                                                            <div className="text-[10px] text-slate-400 font-black italic opacity-50">MISSING</div>
+                                                                SCAN
+                                                            </button>
                                                         )}
                                                     </div>
                                                 );
@@ -225,61 +239,38 @@ export default function AdminDriversPage() {
                                         </div>
                                     </div>
 
-                                    {/* Action Box */}
-                                    <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-                                        <Button
-                                            className="w-full bg-green-600 hover:bg-green-700 text-white font-black h-16 rounded-3xl shadow-xl shadow-green-500/10 active:scale-[0.98] transition-all text-lg tracking-tight uppercase"
+                                    <div className="pt-8 border-t border-white/5 flex flex-col gap-3">
+                                        <button
                                             onClick={() => handleStatusChange(selectedDriver.id!, 'approved')}
                                             disabled={selectedDriver.status === 'approved'}
+                                            className="w-full bg-primary text-black font-black h-16 sm:h-20 rounded-2xl sm:rounded-3xl shadow-xl shadow-primary/10 active:scale-95 transition-all text-xl tracking-tighter uppercase italic disabled:opacity-30 disabled:grayscale"
                                         >
-                                            <CheckCircle className="mr-3 h-6 w-6" /> APPROVE DRIVER
-                                        </Button>
-                                        <Button
-                                            className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-600 dark:text-slate-400 hover:text-red-500 font-black h-16 rounded-3xl active:scale-[0.98] transition-all text-lg tracking-tight uppercase"
+                                            AUTHORIZE PILOT
+                                        </button>
+                                        <button
                                             onClick={() => handleStatusChange(selectedDriver.id!, 'rejected')}
                                             disabled={selectedDriver.status === 'rejected'}
+                                            className="w-full bg-white/5 text-red-500 font-black h-12 rounded-2xl active:scale-95 transition-all text-[10px] tracking-widest uppercase disabled:opacity-30"
                                         >
-                                            <XCircle className="mr-3 h-6 w-6" /> REJECT APPLICATION
-                                        </Button>
+                                            TERMINATE APPLICATION
+                                        </button>
                                     </div>
                                 </CardContent>
                             </Card>
-                        </div>
+                        </motion.div>
                     ) : (
-                        <div className="h-[600px] flex flex-col items-center justify-center border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem] text-slate-400 space-y-4 bg-slate-50/50 dark:bg-slate-900/20 animate-pulse">
-                            <div className="h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                                <User className="h-10 w-10 text-slate-300" />
+                        <div className="hidden lg:flex h-[600px] flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[3.5rem] text-slate-700 space-y-6 bg-slate-900/20">
+                            <div className="h-20 w-20 rounded-[2rem] bg-slate-900 border border-white/5 flex items-center justify-center animate-pulse">
+                                <Terminal className="h-10 w-10 text-slate-800" />
                             </div>
-                            <div className="text-center">
-                                <p className="font-black uppercase tracking-widest text-sm">Selection Required</p>
-                                <p className="text-xs font-medium text-slate-400">Choose a driver from the left to manage</p>
+                            <div className="text-center space-y-2">
+                                <p className="font-black uppercase tracking-[0.4em] text-xs">Awaiting Command</p>
+                                <p className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">Select target pilot to initialize protocol</p>
                             </div>
                         </div>
                     )}
                 </div>
             </div>
         </div>
-    )
-}
-
-function Users(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
     )
 }

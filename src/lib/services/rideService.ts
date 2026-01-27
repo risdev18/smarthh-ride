@@ -37,6 +37,7 @@ export interface RideRequest {
     driverId?: string;
     driverName?: string;
     driverPhone?: string;
+    driverVehicleNumber?: string;
     createdAt: any;
     otp: string;
     // New fields
@@ -44,6 +45,7 @@ export interface RideRequest {
     landmark?: string;
     rideType?: 'one-way' | 'return';
     isCallRequest?: boolean;
+    // Driver Details
 }
 
 const RIDES_COLLECTION = "rides";
@@ -160,13 +162,14 @@ export const rideService = {
     },
 
     // Driver: Accept a ride
-    async acceptRide(rideId: string, driverId: string, driverName: string, driverPhone: string) {
+    async acceptRide(rideId: string, driverId: string, driverName: string, driverPhone: string, driverVehicleNumber: string) {
         const rideRef = doc(db, RIDES_COLLECTION, rideId);
         await updateDoc(rideRef, {
             status: 'accepted',
             driverId,
             driverName,
-            driverPhone
+            driverPhone,
+            driverVehicleNumber
         });
     },
 
@@ -210,6 +213,23 @@ export const rideService = {
                 today: totalEarnings,
                 trips: snapshot.size
             });
+        });
+    },
+
+    // Admin: Listen to all rides
+    listenToAllRides(callback: (rides: RideRequest[]) => void) {
+        const q = query(
+            collection(db, RIDES_COLLECTION),
+            orderBy("createdAt", "desc"),
+            limit(100)
+        );
+
+        return onSnapshot(q, (snapshot) => {
+            const rides = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as RideRequest));
+            callback(rides);
         });
     }
 };

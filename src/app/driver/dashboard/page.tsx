@@ -20,11 +20,13 @@ import {
     FileText,
     ArrowRight,
     Clock,
-    ShieldCheck
+    ShieldCheck,
+    Loader2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useUserStore } from "@/lib/store/useUserStore"
 import { rideService, RideRequest } from "@/lib/services/rideService"
+import { driverService } from "@/lib/services/driverService"
 import { motion, AnimatePresence } from "framer-motion"
 import IncomingRideRequest from "@/components/driver/IncomingRideRequest"
 import dynamic from "next/dynamic"
@@ -34,7 +36,7 @@ const Map = dynamic(() => import("@/components/map/MapComponent"), { ssr: false 
 
 export default function DriverDashboard() {
     const router = useRouter()
-    const { user, setUser, logout } = useUserStore()
+    const { user, logout } = useUserStore()
 
     // Status State
     const [status, setStatus] = useState<'online' | 'offline'>('offline')
@@ -44,6 +46,7 @@ export default function DriverDashboard() {
     // UI State
     const [otpInput, setOtpInput] = useState("")
     const [stats, setStats] = useState({ today: 0, trips: 0, rating: 4.8 })
+    const [loading, setLoading] = useState(false)
 
     // GPS & Routing State
     const [driverLocation, setDriverLocation] = useState<{ lat: number, lng: number } | null>(null)
@@ -58,10 +61,16 @@ export default function DriverDashboard() {
         if (navigator.geolocation) {
             const watchId = navigator.geolocation.watchPosition(
                 (pos) => {
-                    setDriverLocation({
+                    const newLocation = {
                         lat: pos.coords.latitude,
                         lng: pos.coords.longitude
-                    })
+                    };
+                    setDriverLocation(newLocation);
+
+                    // Sync with Firestore if online
+                    if (status === 'online' && user?.id) {
+                        driverService.updateDriverLocation(user.id, newLocation.lat, newLocation.lng);
+                    }
                 },
                 (err) => console.error("GPS Error:", err),
                 { enableHighAccuracy: true }
@@ -69,35 +78,31 @@ export default function DriverDashboard() {
             return () => navigator.geolocation.clearWatch(watchId)
         }
 
-        // B. Restore State (Fix 'Driver not seeing ride' bug)
+        // B. Restore State
         const checkActiveRide = async () => {
             const existingRide = await rideService.getDriverActiveRide(user.id!)
             if (existingRide) {
                 setActiveRide(existingRide)
                 setRideStatus(existingRide.status as any)
-                // If ride is active, go online
                 setStatus('online')
             }
         }
         checkActiveRide()
 
-    }, [user?.id])
+    }, [user?.id, status])
 
     // 🛣️ 2. CALCULATE ROUTE WHEN RIDE IS ACTIVE
     useEffect(() => {
         const fetchRoute = async () => {
             if (!activeRide || !driverLocation) return
 
-            let start = driverLocation
             let end = { lat: activeRide.pickup.lat, lng: activeRide.pickup.lng }
-
             if (rideStatus === 'started') {
-                start = { lat: activeRide.pickup.lat, lng: activeRide.pickup.lng } // Or current driver loc
                 end = { lat: activeRide.drop.lat, lng: activeRide.drop.lng }
             }
 
             if (rideStatus === 'navigating' || rideStatus === 'started') {
-                const routeData = await rideService.getSmartRoute(driverLocation, end) // ALWAYS from current driver loc
+                const routeData = await rideService.getSmartRoute(driverLocation, end)
                 if (routeData) {
                     setRouteCoords(routeData.coordinates)
                     setEta(`${routeData.duration} min`)
@@ -106,7 +111,6 @@ export default function DriverDashboard() {
         }
 
         fetchRoute()
-        // Poll for route updates every 30s or when status changes
         const interval = setInterval(fetchRoute, 30000)
         return () => clearInterval(interval)
     }, [activeRide, rideStatus, driverLocation])
@@ -120,11 +124,10 @@ export default function DriverDashboard() {
         return () => unsubscribe()
     }, [user?.id])
 
-    // 3. LISTEN FOR REAL RIDES (With Geo-Filter)
+    // 3. LISTEN FOR REAL RIDES
     useEffect(() => {
         if (status !== 'online' || rideStatus !== 'idle' || !driverLocation) return
 
-        // Query radius: 50km for testing, lowering to 5km in real usage
         const unsubscribe = rideService.listenForAvailableRides(
             driverLocation.lat,
             driverLocation.lng,
@@ -141,27 +144,34 @@ export default function DriverDashboard() {
 
     // 2. LISTEN TO ACTIVE RIDE UPDATES
     useEffect(() => {
-        if (!activeRide?.id) return
+        if (!activeRide?.id || !user?.id) return
         const unsubscribe = rideService.listenToRide(activeRide.id, (updatedRide) => {
             setActiveRide(updatedRide)
-            // If ride cancelled by passenger
-            if (updatedRide.status === 'cancelled') {
-                alert("Ride was cancelled by passenger")
-                setRideStatus('idle')
-                setActiveRide(null)
+            if (updatedRide.status !== 'pending' && updatedRide.driverId !== user.id) {
+                if (rideStatus === 'request') {
+                    setRideStatus('idle')
+                    setActiveRide(null)
+                } else if (updatedRide.status === 'cancelled') {
+                    alert("Ride was cancelled by passenger")
+                    setRideStatus('idle')
+                    setActiveRide(null)
+                }
             }
         })
         return () => unsubscribe()
-    }, [activeRide?.id])
+    }, [activeRide?.id, user?.id, rideStatus])
 
     const handleAcceptRide = async () => {
         if (!activeRide?.id || !user) return
+        setLoading(true)
         try {
-            await rideService.acceptRide(activeRide.id, user.id, user.name, user.phone)
+            await rideService.acceptRide(activeRide.id, user.id, user.name, user.phone, user.vehicleNumber || 'AX-4137')
             setRideStatus('navigating')
         } catch (e) {
             alert("Could not accept ride")
             setRideStatus('idle')
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -176,30 +186,29 @@ export default function DriverDashboard() {
             handleUpdateStatus('started')
             setOtpInput("")
         } else {
-            alert("Invalid OTP! Please check with passenger.")
+            alert("Invalid OTP!")
         }
     }
 
-    // --- PROTECTIVE DASHBOARD LOGIC ---
     if (!user) return null
 
     // 🛡️ REJECTION STATE
     if (user.status === 'rejected') {
         return (
-            <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
-                <div className="bg-red-500/10 p-6 rounded-3xl border border-red-500/20 mb-6">
-                    <AlertCircle className="h-16 w-16 text-red-500" />
+            <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center sm:p-12">
+                <div className="bg-red-500/10 p-6 sm:p-8 rounded-[3rem] border border-red-500/20 mb-8 shadow-[0_0_60px_rgba(239,68,68,0.1)]">
+                    <AlertCircle className="h-16 w-16 sm:h-20 sm:w-20 text-red-500" />
                 </div>
-                <h1 className="text-3xl font-black text-white uppercase italic tracking-tight mb-2">Account Rejected</h1>
-                <p className="text-slate-500 max-w-xs mb-8">Your documents did not meet our verification standards. Please update and re-submit.</p>
-                <div className="flex flex-col w-full max-w-xs gap-3">
+                <h1 className="text-3xl sm:text-4xl font-black text-white uppercase italic tracking-tighter mb-4 balance-text">Mission Compromised</h1>
+                <p className="text-slate-500 max-w-xs mb-10 text-sm sm:text-base leading-relaxed">Your profile verification failed to meet fleet standards. Please update credentials for re-authorization.</p>
+                <div className="flex flex-col w-full max-w-xs gap-4">
                     <Button
-                        className="h-16 bg-white text-black font-black rounded-2xl"
+                        className="h-16 bg-white text-black font-black rounded-2xl sm:rounded-3xl tracking-widest active:scale-95 transition-all"
                         onClick={() => router.push("/driver/documents")}
                     >
-                        RE-UPLOAD DOCUMENTS
+                        RE-SUBMIT PROTOCOL
                     </Button>
-                    <Button variant="ghost" className="text-slate-400 font-bold" onClick={() => logout()}>LOGOUT</Button>
+                    <Button variant="ghost" className="text-slate-600 font-black h-12 uppercase tracking-widest text-[10px]" onClick={() => logout()}>SIGNOUT</Button>
                 </div>
             </div>
         )
@@ -208,87 +217,96 @@ export default function DriverDashboard() {
     // 🛡️ PENDING/INCOMPLETE STATE
     if (user.status === 'pending' || user.status === 'incomplete' || !user.isApproved) {
         return (
-            <div className="min-h-screen bg-slate-950 flex flex-col p-8 font-sans">
-                <header className="flex justify-between items-center mb-12">
-                    <h1 className="text-2xl font-black tracking-tighter">SMARTH<span className="text-primary">RIDES</span></h1>
-                    <Button variant="ghost" className="text-slate-500 h-10 w-10 p-0" onClick={() => logout()}><LogOut /></Button>
+            <div className="min-h-screen bg-slate-950 flex flex-col p-6 sm:p-10 font-sans">
+                <header className="flex justify-between items-center mb-10 sm:mb-16">
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tighter uppercase italic leading-none">SMARTH<span className="text-primary">RIDES</span></h1>
+                    <button onClick={() => logout()} className="h-12 w-12 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center text-slate-500 active:scale-90 transition-transform">
+                        <LogOut className="h-5 w-5" />
+                    </button>
                 </header>
 
-                <div className="flex-1 flex flex-col justify-center">
-                    <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[2.5rem] relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4">
-                            <Clock className="text-primary/20 h-24 w-24 -mr-4 -mt-4 rotate-12" />
+                <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+                    <div className="bg-slate-900/60 backdrop-blur-3xl border border-white/5 p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl">
+                        <div className="absolute top-0 right-0 p-6 opacity-10">
+                            <Clock className="text-primary h-24 w-24 sm:h-32 sm:w-32 -mr-8 -mt-8 rotate-12" />
                         </div>
-                        <h2 className="text-4xl font-black text-white mb-4 uppercase italic">Verification <br /> In Progress</h2>
-                        <p className="text-slate-400 font-medium mb-8 leading-relaxed">Our team at <span className="text-white font-bold">Smarth Rides</span> is reviewing your documents. You will receive an update shortly.</p>
+                        <h2 className="text-3xl sm:text-5xl font-black text-white mb-4 uppercase italic tracking-tighter leading-none">Authorization <br /> Pending</h2>
+                        <p className="text-slate-500 font-bold mb-10 text-xs sm:text-sm uppercase tracking-wide leading-relaxed">
+                            Fleet command is validating your credentials. Access granted upon successful encryption.
+                        </p>
 
-                        <div className="space-y-4">
+                        <div className="space-y-4 sm:space-y-6">
                             {[
-                                { label: 'Account Registered', done: true },
-                                { label: 'Documents Uploaded', done: user.status === 'pending' },
-                                { label: 'Phone Verification', done: true },
-                                { label: 'Final Approval', done: false }
+                                { label: 'Handshake Established', done: true },
+                                { label: 'Protocol Submission', done: user.status === 'pending' },
+                                { label: 'Auth verification', done: true },
+                                { label: 'Final Deployment', done: false }
                             ].map((step, i) => (
-                                <div key={i} className="flex items-center gap-4">
-                                    <div className={`h-6 w-6 rounded-full flex items-center justify-center ${step.done ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-600'}`}>
-                                        <CheckCircle className="h-4 w-4" />
+                                <div key={i} className="flex items-center gap-4 sm:gap-5">
+                                    <div className={`h-6 w-6 sm:h-7 sm:w-7 rounded-xl flex items-center justify-center transition-all ${step.done ? 'bg-primary text-black' : 'bg-slate-800 text-slate-600'}`}>
+                                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                                     </div>
-                                    <span className={`text-sm font-bold uppercase tracking-widest ${step.done ? 'text-white' : 'text-slate-600'}`}>{step.label}</span>
+                                    <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] ${step.done ? 'text-white' : 'text-slate-600'}`}>{step.label}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     <Button
-                        className="mt-8 h-16 bg-primary text-black font-black rounded-2xl group"
+                        className="mt-10 h-16 sm:h-20 bg-primary text-black font-black rounded-3xl group tracking-widest active:scale-[0.98] transition-all shadow-xl shadow-primary/10"
                         onClick={() => router.push("/driver/documents")}
                     >
-                        {user.status === 'incomplete' ? "UPLOAD DOCUMENTS" : "VIEW SUBMITTED DOCS"}
-                        <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                        {user.status === 'incomplete' ? "DEPLOY DOCUMENTS" : "REVIEW DATA"}
+                        <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform" />
                     </Button>
                 </div>
             </div>
         )
     }
 
-    // --- MAIN DASHBOARD (APPROVED) ---
     return (
-        <div className="flex flex-col h-screen bg-slate-950 text-white relative font-sans">
-
-            {/* Header / HUD */}
-            <header className="absolute top-0 inset-x-0 z-20 p-6 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent">
-                <div className="flex items-center gap-4">
-                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-3xl shadow-2xl flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-2xl bg-slate-800 flex items-center justify-center border border-white/5">
-                            <Wallet className="text-primary h-6 w-6" />
+        <div className="flex flex-col h-screen bg-slate-950 text-white relative font-sans overflow-hidden">
+            {/* TOP HUD */}
+            <header className="absolute top-0 inset-x-0 z-20 p-4 sm:p-6 flex flex-col sm:flex-row gap-3 sm:items-center justify-between pointer-events-none">
+                <div className="flex items-center gap-3 pointer-events-auto">
+                    <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 p-3 sm:p-4 rounded-3xl shadow-2xl flex items-center gap-4">
+                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-slate-950 flex items-center justify-center border border-white/5">
+                            <Wallet className="text-primary h-5 w-5 sm:h-6 sm:w-6" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Earnings</p>
-                            <h2 className="text-2xl font-black italic tracking-tighter leading-none">₹{stats.today}</h2>
+                        <div className="pr-2">
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Impact Yield</p>
+                            <h2 className="text-xl sm:text-2xl font-black italic tracking-tighter leading-none">₹{stats.today}</h2>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    <Button
-                        onClick={() => setStatus(status === 'online' ? 'offline' : 'online')}
-                        className={`h-14 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${status === 'online' ? 'bg-red-500/10 text-red-500 border border-red-500/50' : 'bg-primary text-black shadow-lg shadow-primary/20'}`}
+                <div className="flex gap-2 pointer-events-auto">
+                    <button
+                        onClick={async () => {
+                            const newStatus = status === 'online' ? 'offline' : 'online';
+                            setStatus(newStatus);
+                            if (user?.id) {
+                                await driverService.updateDriverStatus(user.id, newStatus);
+                                if (newStatus === 'online' && driverLocation) {
+                                    await driverService.updateDriverLocation(user.id, driverLocation.lat, driverLocation.lng);
+                                }
+                            }
+                        }}
+                        className={`flex-1 sm:flex-none h-14 px-6 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] transition-all border-2 flex items-center justify-center gap-2 ${status === 'online' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-primary text-black border-primary shadow-lg shadow-primary/20'}`}
                     >
-                        <Power className="mr-2 h-5 w-5" />
-                        {status === 'online' ? 'Go Offline' : 'Go Online'}
-                    </Button>
-                    <Button variant="ghost" className="bg-slate-900 border border-slate-800 h-14 w-12 rounded-2xl" onClick={logout}>
-                        <LogOut className="h-5 w-5 text-slate-500" />
-                    </Button>
+                        <Power className="h-4 w-4" />
+                        {status === 'online' ? 'Deploy Offline' : 'Deploy Online'}
+                    </button>
+                    <button onClick={logout} className="h-14 w-14 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center text-slate-500 active:scale-90 transition-transform">
+                        <LogOut className="h-5 w-5" />
+                    </button>
                 </div>
             </header>
 
-            {/* Content Area */}
-            <main className="flex-1 relative flex flex-col justify-center items-center overflow-hidden">
-
-                {/* Visual Background / Map Area */}
+            {/* MAIN INTERFACE */}
+            <main className="flex-1 relative overflow-hidden flex flex-col">
+                {/* MAP & SCANNING */}
                 <div className="absolute inset-0 z-0">
-                    {/* REAL MAP COMPONENT */}
                     {driverLocation ? (
                         <Map
                             center={driverLocation}
@@ -297,36 +315,39 @@ export default function DriverDashboard() {
                             routeCoordinates={routeCoords || undefined}
                         />
                     ) : (
-                        <div className="h-full w-full bg-slate-900 animate-pulse flex items-center justify-center">
-                            <p className="text-slate-500 font-bold uppercase tracking-widest">Locating Driver...</p>
+                        <div className="h-full w-full bg-slate-900 flex flex-col items-center justify-center gap-4">
+                            <div className="h-10 w-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Locating Hub...</p>
                         </div>
                     )}
 
-                    {/* OVERLAY GRADIENT */}
                     <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-transparent to-slate-950/90 pointer-events-none"></div>
 
-                    {status === 'online' && rideStatus === 'idle' && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.1, 0.3] }} transition={{ repeat: Infinity, duration: 4 }} className="absolute h-[500px] w-[500px] rounded-full border border-primary/20"></motion.div>
-                            <div className="text-center space-y-4 relative z-10">
-                                <div className="bg-primary/10 h-24 w-24 rounded-full flex items-center justify-center mx-auto ring-2 ring-primary/20 animate-pulse">
-                                    <Navigation className="h-10 w-10 text-primary" />
+                    <AnimatePresence>
+                        {status === 'online' && rideStatus === 'idle' && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-6">
+                                <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.05, 0.2] }} transition={{ repeat: Infinity, duration: 4 }} className="absolute h-64 w-64 sm:h-[400px] sm:w-[400px] rounded-[4rem] border border-primary/20 rotate-45"></motion.div>
+                                <div className="text-center space-y-4">
+                                    <div className="h-20 w-20 sm:h-24 sm:w-24 bg-primary/10 rounded-[2.5rem] flex items-center justify-center mx-auto ring-1 ring-primary/20 animate-pulse">
+                                        <Navigation className="h-10 w-10 text-primary" />
+                                    </div>
+                                    <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-primary animate-pulse">Scanning Grid</h2>
                                 </div>
-                                <h2 className="text-sm font-black uppercase tracking-[0.4em] text-primary">Scanning for Rides</h2>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </AnimatePresence>
 
                     {status === 'offline' && (
-                        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-10">
-                            <div className="text-center space-y-8 animate-in zoom-in">
-                                <h2 className="text-6xl font-black text-slate-800 uppercase italic leading-none">System <br /> Inactive</h2>
-                                <p className="text-slate-600 font-bold uppercase tracking-widest text-sm">Switch presence to start receiving requests</p>
+                        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6">
+                            <div className="text-center space-y-6 sm:space-y-10 animate-in fade-in zoom-in duration-500">
+                                <h2 className="text-6xl sm:text-8xl font-black text-slate-900 uppercase italic leading-none tracking-tighter">OFFLINE</h2>
+                                <p className="text-[10px] sm:text-xs text-slate-600 font-black uppercase tracking-[0.5em] balance-text">Switch presence protocol to initialize missions</p>
                             </div>
                         </div>
                     )}
                 </div>
 
+                {/* MODALS & PANELS */}
                 <AnimatePresence>
                     {rideStatus === 'request' && activeRide && (
                         <IncomingRideRequest
@@ -342,57 +363,74 @@ export default function DriverDashboard() {
 
                 <AnimatePresence>
                     {(rideStatus === 'navigating' || rideStatus === 'arrived' || rideStatus === 'started') && activeRide && (
-                        <motion.div initial={{ y: 300 }} animate={{ y: 0 }} className="absolute bottom-0 inset-x-0 z-30 p-6 space-y-4">
-                            <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-primary/20">
-                                    <motion.div initial={{ x: '-100%' }} animate={{ x: '100%' }} transition={{ repeat: Infinity, duration: 2 }} className="h-full w-1/3 bg-primary" />
+                        <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="absolute bottom-0 inset-x-0 z-30 p-4 sm:p-6">
+                            <div className="max-w-xl mx-auto bg-slate-900 border border-white/5 rounded-[2.5rem] sm:rounded-[3.5rem] p-6 sm:p-8 shadow-[0_40px_100px_rgba(0,0,0,0.6)] relative overflow-hidden">
+                                {/* Activity Pulse */}
+                                <div className="absolute top-0 inset-x-0 h-1 bg-white/5 overflow-hidden">
+                                    <motion.div
+                                        animate={{ x: ["-100%", "100%"] }}
+                                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                        className="h-full w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
+                                    />
                                 </div>
 
-                                <div className="flex justify-between items-start mb-8">
-                                    <div>
-                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
-                                            {rideStatus === 'navigating' ? `Heading to Pickup (${eta || 'Calc...'})` : rideStatus === 'arrived' ? 'Waiting for OTP' : `Heading to Destination (${eta || 'Calc...'})`}
-                                        </p>
-                                        <h3 className="text-3xl font-black text-white italic truncate max-w-[200px] uppercase">
+                                <div className="flex justify-between items-start gap-4 mb-6 sm:mb-8">
+                                    <div className="flex-1 overflow-hidden">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="h-2 w-2 rounded-full bg-primary animate-ping" />
+                                            <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] leading-none">
+                                                {rideStatus === 'navigating' ? `Inbound (${eta || '...'})` : rideStatus === 'arrived' ? 'At Hub' : `Deploying (${eta || '...'})`}
+                                            </p>
+                                        </div>
+                                        <h3 className="text-xl sm:text-3xl font-black text-white italic truncate uppercase tracking-tighter">
                                             {rideStatus === 'started' ? activeRide.drop.address : activeRide.pickup.address}
                                         </h3>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <div className="flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-md">
-                                                <Star className="h-3 w-3 fill-green-500 text-green-500" />
-                                                <span className="text-[10px] font-black text-green-500 uppercase">4.9 VIP Passenger</span>
+                                        <div className="flex items-center gap-2 mt-3">
+                                            <div className="bg-white/5 px-3 py-1.5 rounded-xl flex items-center gap-2 border border-white/5">
+                                                <Star className="h-3 w-3 fill-primary text-primary" />
+                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">VIP PASSENGER</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <Button size="icon" className="h-14 w-14 rounded-2xl bg-slate-800 border border-white/5 hover:bg-slate-700 transition-all"><Phone className="h-6 w-6" /></Button>
-                                    </div>
+                                    <button className="h-14 w-14 sm:h-16 sm:w-16 bg-slate-950 border border-white/5 rounded-2xl flex items-center justify-center text-primary active:scale-90 transition-transform">
+                                        <Phone className="h-6 w-6 sm:h-7 sm:w-7" />
+                                    </button>
                                 </div>
 
                                 {rideStatus === 'navigating' && (
-                                    <Button className="w-full h-20 bg-primary text-black font-black text-2xl rounded-3xl uppercase tracking-tight shadow-xl shadow-primary/20 group" onClick={() => handleUpdateStatus('arrived')}>
-                                        I HAVE ARRIVED <CheckCircle className="ml-3 h-8 w-8 group-hover:scale-110 transition-transform" />
-                                    </Button>
+                                    <button
+                                        onClick={() => handleUpdateStatus('arrived')}
+                                        className="w-full h-16 sm:h-20 bg-primary text-black font-black text-xl sm:text-2xl rounded-3xl sm:rounded-3xl uppercase tracking-tighter flex items-center justify-center gap-4 active:scale-95 transition-all shadow-xl shadow-primary/20"
+                                    >
+                                        HUB ARRIVAL <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8" />
+                                    </button>
                                 )}
 
                                 {rideStatus === 'arrived' && (
-                                    <div className="space-y-4">
-                                        <div className="flex gap-2">
-                                            <Input
-                                                placeholder="ENTER 4-DIGIT OTP"
-                                                className="h-20 bg-slate-950 border-2 border-slate-800 text-4xl font-black text-center tracking-[0.5em] rounded-3xl focus:border-primary transition-all text-white placeholder:text-slate-800"
-                                                maxLength={4}
-                                                value={otpInput}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtpInput(e.target.value)}
-                                            />
-                                            <Button className="h-20 w-24 bg-primary text-black font-black rounded-3xl" onClick={handleVerifyOTP}>GO</Button>
-                                        </div>
+                                    <div className="flex gap-2">
+                                        <input
+                                            placeholder="OTP"
+                                            className="flex-1 h-16 sm:h-20 bg-black border border-white/5 text-3xl sm:text-4xl font-black text-center tracking-[0.5em] rounded-2xl sm:rounded-[2rem] text-primary placeholder:text-slate-800 outline-none focus:border-primary transition-all"
+                                            maxLength={4}
+                                            value={otpInput}
+                                            onChange={(e) => setOtpInput(e.target.value)}
+                                        />
+                                        <button
+                                            onClick={handleVerifyOTP}
+                                            className="h-16 sm:h-20 w-24 sm:w-32 bg-primary text-black font-black text-xl rounded-2xl sm:rounded-[2rem] active:scale-95 transition-transform"
+                                        >
+                                            GO
+                                        </button>
                                     </div>
                                 )}
 
                                 {rideStatus === 'started' && (
-                                    <Button className="w-full h-20 bg-green-600 hover:bg-green-700 text-white font-black text-2xl rounded-3xl uppercase tracking-tight shadow-xl shadow-green-500/20" onClick={() => handleUpdateStatus('completed')}>
-                                        COMPLETE RIDE <CheckCircle className="ml-3 h-8 w-8" />
-                                    </Button>
+                                    <button
+                                        onClick={() => handleUpdateStatus('completed')}
+                                        className="w-full h-16 sm:h-20 bg-green-600 text-white font-black text-xl sm:text-2xl rounded-3xl uppercase tracking-tighter flex items-center justify-center gap-4 active:scale-95 transition-all shadow-xl shadow-green-500/20"
+                                    >
+                                        COMPLETE DEST <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8" />
+                                    </button>
                                 )}
                             </div>
                         </motion.div>
@@ -401,46 +439,54 @@ export default function DriverDashboard() {
 
                 <AnimatePresence>
                     {rideStatus === 'completed' && activeRide && (
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-8 text-center space-y-8">
-                            <div className="bg-green-500/10 h-32 w-32 rounded-full flex items-center justify-center ring-4 ring-green-500/20 animate-bounce">
-                                <CheckCircle className="h-20 w-20 text-green-500" />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-6 text-center"
+                        >
+                            <div className="bg-green-500/10 h-24 w-24 sm:h-32 sm:w-32 rounded-[2.5rem] sm:rounded-[3.5rem] flex items-center justify-center mb-8 ring-4 ring-green-500/10 animate-bounce">
+                                <CheckCircle className="h-12 w-12 sm:h-20 sm:w-20 text-green-500" />
                             </div>
-                            <div>
-                                <h1 className="text-5xl font-black italic uppercase tracking-tighter mb-2">Ride Complete</h1>
-                                <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">Collect Cash Payment</p>
+                            <h1 className="text-4xl sm:text-6xl font-black italic uppercase tracking-tighter mb-4 leading-none">Mission <br /> Success</h1>
+                            <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-12">Capture physical settlement</p>
+
+                            <div className="bg-slate-900/50 border border-white/5 p-8 sm:p-12 rounded-[3.5rem] sm:rounded-[4.5rem] w-full max-w-sm mb-12 shadow-2xl">
+                                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-4">Total Yield Captured</p>
+                                <h2 className="text-6xl sm:text-8xl font-black italic tracking-tighter leading-none"><span className="text-2xl sm:text-3xl text-slate-800 mr-2">₹</span>{activeRide.fare}</h2>
                             </div>
-                            <div className="bg-slate-900 border border-slate-800 p-10 rounded-[3rem] w-full max-w-sm">
-                                <p className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Final Trip Fare</p>
-                                <h2 className="text-8xl font-black italic tracking-tighter"><span className="text-4xl text-slate-700 mr-2">₹</span>{activeRide.fare}</h2>
-                            </div>
-                            <Button
-                                className="w-full max-w-sm h-20 bg-primary text-black font-black text-2xl rounded-[2rem] shadow-2xl shadow-primary/20"
+
+                            <button
+                                className="w-full max-w-sm h-20 bg-white text-black font-black text-xl sm:text-2xl rounded-[2.5rem] active:scale-95 transition-all tracking-widest"
                                 onClick={() => {
                                     setRideStatus('idle')
                                     setActiveRide(null)
                                 }}
                             >
-                                DONE & ONLINE
-                            </Button>
+                                REDEPLOY ONLINE
+                            </button>
                         </motion.div>
                     )}
                 </AnimatePresence>
-
             </main>
 
-            <footer className="h-24 bg-slate-900 border-t border-slate-800 flex items-center justify-around p-4 shrink-0">
+            {/* STATS FOOTER */}
+            <footer className="h-20 sm:h-24 bg-slate-950/80 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 shrink-0 relative z-30">
                 {[
                     { label: 'Rating', value: stats.rating, icon: Star, color: 'text-yellow-500' },
-                    { label: 'Trips', value: stats.trips, icon: TrendingUp, color: 'text-blue-500' },
-                    { label: 'Level', value: 'GOLD', icon: ShieldCheck, color: 'text-primary' }
+                    { label: 'Trips', value: stats.trips, icon: TrendingUp, color: 'text-primary' },
+                    { label: 'Pilot', value: 'GOLD', icon: ShieldCheck, color: 'text-primary' }
                 ].map((stat, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                        <div className={`h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center ${stat.color}`}>
-                            <stat.icon className="h-5 w-5" />
+                    <div key={i} className="flex items-center gap-2 sm:gap-3">
+                        <div className={`h-8 w-8 sm:h-11 sm:w-11 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 ${stat.color}`}>
+                            <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">{stat.label}</p>
-                            <h4 className="text-sm font-black text-white italic tracking-tighter leading-none">{stat.value}</h4>
+                        <div className="hidden min-[400px]:block">
+                            <p className="text-[8px] sm:text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
+                            <h4 className="text-xs sm:text-sm font-black text-white italic tracking-tighter leading-none">{stat.value}</h4>
+                        </div>
+                        {/* Mobile Compact Only Value */}
+                        <div className="block min-[400px]:hidden">
+                            <h4 className="text-[10px] font-black text-white italic tracking-tighter leading-none">{stat.value}</h4>
                         </div>
                     </div>
                 ))}

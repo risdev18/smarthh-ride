@@ -210,11 +210,11 @@ export const otpAuthService = {
 
     // Admin login (special case - no OTP)
     async adminLogin(username: string, password: string): Promise<UnifiedUser | null> {
-        if (username === "Rishabh@41@45" && password === "5676") {
+        if (username === "RishAnsh@4137" && password === "4137") {
             return {
                 id: "admin_1",
                 name: "Rishabh Admin",
-                phone: "Rishabh@41@45",
+                phone: "RishAnsh@4137",
                 role: 'admin',
                 createdAt: new Date()
             };

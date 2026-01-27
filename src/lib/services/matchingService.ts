@@ -1,91 +1,69 @@
-import { Coordinates, findNearbyDrivers, DriverCandidate } from '@/lib/geo/utils' // Corrected import path
-import { useDriverStore } from '@/lib/store/useDriverStore' // Assuming we might access store here or pass data
+import { db } from "../firebase";
+import { collection, query, where, getDocs, GeoPoint } from "@firebase/firestore";
+import { Coordinates, findNearbyDrivers, DriverCandidate, calculateDistance } from '@/lib/geo/utils';
 
-// This service mimics the backend dispatcher
+const DRIVERS_COLLECTION = "drivers";
+
 export class MatchingService {
-    private static instance: MatchingService
-    private activeRequests: Map<string, NodeJS.Timeout> = new Map()
+    private static instance: MatchingService;
 
     private constructor() { }
 
     static getInstance(): MatchingService {
         if (!MatchingService.instance) {
-            MatchingService.instance = new MatchingService()
+            MatchingService.instance = new MatchingService();
         }
-        return MatchingService.instance
+        return MatchingService.instance;
     }
 
-    // Simulate finding drivers from a "Database" of mock drivers
-    // In a real app, this would query the DB. Here we can generate mocks or use the store if we populated it.
-    async findBestDrivers(pickup: Coordinates, radius: number): Promise<DriverCandidate[]> {
-        // MOCK DATA GENERATION FOR SIMULATION
-        const mockDrivers: DriverCandidate[] = [
-            {
-                id: 'd1',
-                location: { lat: pickup.lat + 0.001, lng: pickup.lng + 0.001 }, // Very close
-                rating: 4.8,
-                lastActiveTime: Date.now() - 1000 * 60 * 10, // 10 mins ago
-                status: 'online',
-                verificationStatus: 'approved',
-            },
-            {
-                id: 'd2',
-                location: { lat: pickup.lat + 0.01, lng: pickup.lng + 0.01 }, // ~1km away
-                rating: 4.5,
-                lastActiveTime: Date.now() - 1000 * 60 * 30, // 30 mins ago
-                status: 'online',
-                verificationStatus: 'approved',
-            },
-            {
-                id: 'd3',
-                location: { lat: pickup.lat + 0.005, lng: pickup.lng }, // ~0.5km away
-                rating: 4.9,
-                lastActiveTime: Date.now() - 1000 * 60 * 5, // 5 mins ago
-                status: 'online',
-                verificationStatus: 'approved',
-            },
-            {
-                id: 'd4',
-                location: { lat: pickup.lat, lng: pickup.lng }, // Same spot
-                rating: 4.0,
-                lastActiveTime: Date.now(),
-                status: 'offline', // Should be ignored
-                verificationStatus: 'approved',
-            },
-            {
-                id: 'd5',
-                location: { lat: pickup.lat + 0.002, lng: pickup.lng },
-                rating: 5.0,
-                lastActiveTime: Date.now(),
-                status: 'online',
-                verificationStatus: 'pending', // Should be ignored
-            }
-        ]
+    /**
+     * Finds the best drivers by querying Firestore for online and approved drivers,
+     * then filtering/sorting them using geospatial utilities.
+     */
+    async findBestDrivers(pickup: Coordinates, radius: number = 5): Promise<DriverCandidate[]> {
+        try {
+            // 1. Fetch Online & Approved drivers from Firestore
+            const q = query(
+                collection(db, DRIVERS_COLLECTION),
+                where("status", "==", "online"),
+                where("isApproved", "==", true)
+            );
 
-        return findNearbyDrivers(pickup, mockDrivers, radius)
+            const snapshot = await getDocs(q);
+
+            // 2. Map Firestore docs to DriverCandidate objects
+            const drivers: DriverCandidate[] = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    location: data.location as Coordinates,
+                    rating: data.rating || 4.5, // Fallback rating
+                    lastActiveTime: data.lastActiveTime || Date.now(),
+                    status: data.status,
+                    verificationStatus: data.isApproved ? 'approved' : 'pending'
+                } as DriverCandidate;
+            });
+
+            // 3. Filter and Sort using our robust geo utility
+            // This handles distance filtering, sorting by distance, rating, and fair distribution.
+            return findNearbyDrivers(pickup, drivers, radius);
+
+        } catch (error) {
+            console.error("Error in matching service:", error);
+            return [];
+        }
     }
 
-    // Simulate sequential dispatch
+    /**
+     * Simulation for driver notification logic
+     */
     async dispatchRequest(rideId: string, drivers: DriverCandidate[]) {
-        console.log(`Starting dispatch for Ride ${rideId} to ${drivers.length} drivers`)
-
-        // Recursive dispatch simulation
-        await this.notifyDriver(rideId, drivers, 0)
-    }
-
-    private async notifyDriver(rideId: string, drivers: DriverCandidate[], index: number) {
-        if (index >= drivers.length) {
-            console.log(`No drivers accepted Ride ${rideId}`)
-            return
+        if (drivers.length === 0) {
+            console.log(`No eligible drivers found for ride ${rideId}`);
+            return;
         }
 
-        const driver = drivers[index]
-        console.log(`Notifying Driver ${driver.id} (Rank ${index + 1})...`)
-
-        // In a real app, this sends a socket event.
-        // Here we simulate a timeout wait.
-
-        // We can't easily simulate "waiting for user input" in a pure function without UI interaction.
-        // But this structure logic is ready for the UI integration.
+        console.log(`Dispatching ride ${rideId} to ${drivers.length} pilots...`);
+        // In a real environment, this would hit a Pub/Sub or WebSocket hub
     }
 }

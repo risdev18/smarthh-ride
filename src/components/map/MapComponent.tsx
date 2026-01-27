@@ -39,16 +39,28 @@ interface MapProps {
     zoom?: number
     showUserLocation?: boolean
     routeCoordinates?: { lat: number, lng: number }[]
+    drivers?: { id: string, location: { lat: number, lng: number }, name?: string }[]
+}
+
+const getDriverIcon = () => {
+    if (typeof window === 'undefined') return null;
+    return L.icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png", // Auto icon
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+    });
 }
 
 export default function MapComponent({
     center = { lat: 18.5204, lng: 73.8567 }, // Pune default
     zoom = 15,
     showUserLocation = true,
-    routeCoordinates
+    routeCoordinates,
+    drivers = []
 }: MapProps) {
     const [isMounted, setIsMounted] = useState(false)
     const icon = useMemo(() => getIcon(), [])
+    const driverIcon = useMemo(() => getDriverIcon(), [])
 
     useEffect(() => {
         setIsMounted(true)
@@ -78,6 +90,19 @@ export default function MapComponent({
                         <Recenter lat={center.lat} lng={center.lng} />
                     </>
                 )}
+
+                {/* 🚕 DRIVER MARKERS */}
+                {drivers.map(driver => (
+                    driverIcon && (
+                        <Marker
+                            key={driver.id}
+                            position={[driver.location.lat, driver.location.lng]}
+                            icon={driverIcon}
+                        >
+                            <Popup>{driver.name || "Driver"}</Popup>
+                        </Marker>
+                    )
+                ))}
 
                 {/* 🛣️ ROUTE POLYLINE */}
                 {routeCoordinates && routeCoordinates.length > 0 && (

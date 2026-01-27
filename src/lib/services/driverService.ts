@@ -91,7 +91,7 @@ export const driverService = {
     },
 
     // Update Driver Documents
-    async updateDriverDocuments(driverId: string, documents: any) {
+    async updateDriverDocuments(driverId: string, documents: any, vehicleNumber?: string) {
         const driverRef = doc(db, DRIVERS_COLLECTION, driverId);
 
         // CRITICAL: Explicitly extract fields to ensure no circular refs or 
@@ -102,10 +102,16 @@ export const driverService = {
             insuranceUrl: typeof documents.insuranceUrl === 'string' ? documents.insuranceUrl : ""
         };
 
-        await updateDoc(driverRef, {
+        const updateData: any = {
             documents: cleanedDocs,
             status: 'pending'
-        });
+        };
+
+        if (vehicleNumber) {
+            updateData.vehicleNumber = vehicleNumber;
+        }
+
+        await updateDoc(driverRef, updateData);
     },
 
     // Approve/Reject Driver (Admin function)
@@ -114,6 +120,45 @@ export const driverService = {
         await updateDoc(driverRef, {
             status: status,
             isApproved: status === 'approved'
+        });
+    },
+
+    // Update Driver Location
+    async updateDriverLocation(driverId: string, lat: number, lng: number) {
+        if (!driverId) return;
+        try {
+            const driverRef = doc(db, DRIVERS_COLLECTION, driverId);
+            await updateDoc(driverRef, {
+                location: { lat, lng },
+                lastActiveTime: Date.now()
+            });
+        } catch (error) {
+            console.error("Error updating location:", error);
+        }
+    },
+
+    // Listen to online nearby drivers (For Passenger Map)
+    listenToNearbyDrivers(callback: (drivers: any[]) => void) {
+        const q = query(
+            collection(db, DRIVERS_COLLECTION),
+            where("status", "==", "online"),
+            where("isApproved", "==", true)
+        );
+        return onSnapshot(q, (snapshot) => {
+            const drivers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            callback(drivers);
+        });
+    },
+
+    // Listen to a specific driver's location
+    listenToDriverLocation(driverId: string, callback: (location: { lat: number, lng: number } | null) => void) {
+        return onSnapshot(doc(db, DRIVERS_COLLECTION, driverId), (doc) => {
+            if (doc.exists()) {
+                const data = doc.data();
+                callback(data.location || null);
+            } else {
+                callback(null);
+            }
         });
     }
 };
