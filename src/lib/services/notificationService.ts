@@ -23,7 +23,7 @@ export const notificationService = {
 
         // Dispatch a custom event to show the notification toast (For UI feedback)
         if (typeof window !== 'undefined') {
-            const event = new CustomEvent('MOCK_GMAIL_NOTIFICATION', {
+            const event = new CustomEvent('GMAIL_SYNC_NOTIFICATION', {
                 detail: {
                     title: "Gmail: Registration Review Required",
                     body: `DRIVER: ${driverData.name} (${driverData.phone})\nVEHICLE: ${driverData.vehicleNumber || 'N/A'}\n${docSummary}\nData synced to ${TARGET_EMAIL}.`

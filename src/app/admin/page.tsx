@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useUserStore } from "@/lib/store/useUserStore"
@@ -20,13 +21,42 @@ import {
 } from "lucide-react"
 import { motion } from "framer-motion"
 import { dataPurgeService } from "@/lib/services/dataPurgeService"
+import { driverService, DriverData } from "@/lib/services/driverService"
+import { passengerService, PassengerData } from "@/lib/services/passengerService"
+import { rideService, RideRequest } from "@/lib/services/rideService"
 
 export default function AdminOverview() {
+    const [drivers, setDrivers] = useState<DriverData[]>([])
+    const [passengers, setPassengers] = useState<PassengerData[]>([])
+    const [rides, setRides] = useState<RideRequest[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const unsubDrivers = driverService.listenToDrivers((data) => setDrivers(data))
+        const unsubPassengers = passengerService.listenToPassengers((data) => setPassengers(data))
+        const unsubRides = rideService.listenToAllRides((data) => setRides(data))
+
+        setLoading(false)
+
+        return () => {
+            unsubDrivers()
+            unsubPassengers()
+            unsubRides()
+        }
+    }, [])
+
+    const totalRevenue = rides
+        .filter(r => r.status === 'completed')
+        .reduce((acc, curr) => acc + (curr.fare || 0), 0)
+
+    const activeDrivers = drivers.filter(d => d.status === 'online').length
+    const pendingApprovals = drivers.filter(d => d.status === 'pending').length
+
     const stats = [
-        { label: 'Total Revenue', value: '₹1,24,500', trend: '+12.5%', icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/10' },
-        { label: 'Active Pilots', value: '142', trend: '+4.2%', icon: Car, color: 'text-primary', bg: 'bg-primary/10' },
-        { label: 'Passengers', value: '2,840', trend: '+8.1%', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-        { label: 'Verification', value: '98.2%', trend: '+0.4%', icon: ShieldCheck, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+        { label: 'Total Revenue', value: `₹${totalRevenue.toLocaleString()}`, trend: 'REALTIME', icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/10' },
+        { label: 'Pilots (Online)', value: activeDrivers.toString(), trend: `${drivers.length} TOTAL`, icon: Car, color: 'text-primary', bg: 'bg-primary/10' },
+        { label: 'Passengers', value: passengers.length.toString(), trend: 'TOTAL', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+        { label: 'Pending Approvals', value: pendingApprovals.toString(), trend: 'URGENT', icon: ShieldCheck, color: 'text-purple-500', bg: 'bg-purple-500/10' },
     ]
 
     return (
@@ -78,7 +108,7 @@ export default function AdminOverview() {
                                     <div className={`h-10 w-10 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center transition-transform group-hover:scale-110`}>
                                         <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
                                     </div>
-                                    <div className={`flex items-center gap-1 text-[8px] sm:text-[10px] font-black px-2 py-0.5 rounded-md ${stat.trend.startsWith('+') ? 'bg-green-500 text-black' : 'bg-red-500 text-black'}`}>
+                                    <div className={`flex items-center gap-1 text-[8px] sm:text-[10px] font-black px-2 py-0.5 rounded-md ${stat.bg} ${stat.color} bg-opacity-20`}>
                                         {stat.trend}
                                     </div>
                                 </div>
@@ -103,26 +133,30 @@ export default function AdminOverview() {
                                 </CardTitle>
                                 <CardDescription className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500 mt-1">Live grid activity stream</CardDescription>
                             </div>
-                            <button className="h-10 px-5 bg-white/5 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all">EXPAND DATA</button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-8 sm:p-12 pt-0">
                         <div className="space-y-3 sm:space-y-4">
-                            {[1, 2, 3, 4, 5].map((ride, i) => (
-                                <div key={i} className="flex items-center gap-4 p-4 sm:p-6 bg-slate-950 border border-white/5 rounded-2xl sm:rounded-3xl hover:border-primary/20 transition-all cursor-pointer group">
+                            {rides.slice(0, 6).map((ride) => (
+                                <div key={ride.id} className="flex items-center gap-4 p-4 sm:p-6 bg-slate-950 border border-white/5 rounded-2xl sm:rounded-3xl hover:border-primary/20 transition-all cursor-pointer group">
                                     <div className="h-12 w-12 bg-slate-900 rounded-2xl flex items-center justify-center border border-white/5 group-hover:border-primary/40 transition-colors">
                                         <Map className="h-6 w-6 text-slate-700 group-hover:text-primary transition-colors" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs sm:text-sm font-black text-white uppercase tracking-tight truncate">Asset Stream SR-892{i}</p>
-                                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">TRANSIT • 4.2 KM GAP</p>
+                                        <p className="text-xs sm:text-sm font-black text-white uppercase tracking-tight truncate">Asset: {ride.passengerName}</p>
+                                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">{ride.status.toUpperCase()} • {ride.pickup.address.slice(0, 20)}...</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm sm:text-lg font-black text-white italic">₹142.00</p>
-                                        <p className="text-[8px] sm:text-[10px] font-black text-green-500 uppercase tracking-widest">ACTIVE</p>
+                                        <p className="text-sm sm:text-lg font-black text-white italic">₹{ride.fare}</p>
+                                        <p className={`text-[8px] sm:text-[10px] font-black uppercase tracking-widest ${ride.status === 'completed' ? 'text-green-500' : 'text-primary'}`}>{ride.status}</p>
                                     </div>
                                 </div>
                             ))}
+                            {rides.length === 0 && (
+                                <div className="py-20 text-center text-slate-700 font-black uppercase tracking-widest text-xs">
+                                    No active logs in the current sector
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -139,29 +173,20 @@ export default function AdminOverview() {
                             <div className="space-y-6">
                                 <div className="space-y-3">
                                     <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">
-                                        <span>Infrastructure Load</span>
-                                        <span className="text-primary">24%</span>
+                                        <span>Inbound Signals</span>
+                                        <span className="text-primary">{rides.length}</span>
                                     </div>
                                     <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                                        <motion.div initial={{ width: 0 }} animate={{ width: "24%" }} className="h-full bg-primary" />
+                                        <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(rides.length * 2, 100)}%` }} className="h-full bg-primary" />
                                     </div>
                                 </div>
                                 <div className="space-y-3">
                                     <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">
-                                        <span>Grid Latency</span>
-                                        <span className="text-green-500">12ms</span>
+                                        <span>Pilot Availability</span>
+                                        <span className="text-green-500">{activeDrivers}/{drivers.length}</span>
                                     </div>
                                     <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                                        <motion.div initial={{ width: 0 }} animate={{ width: "12%" }} className="h-full bg-green-500" />
-                                    </div>
-                                </div>
-                                <div className="space-y-3">
-                                    <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">
-                                        <span>Sync Integrity</span>
-                                        <span className="text-blue-500">99.9%</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                                        <motion.div initial={{ width: 0 }} animate={{ width: "99.9%" }} className="h-full bg-blue-500" />
+                                        <motion.div initial={{ width: 0 }} animate={{ width: `${(activeDrivers / (drivers.length || 1)) * 100}%` }} className="h-full bg-green-500" />
                                     </div>
                                 </div>
                             </div>
@@ -179,19 +204,27 @@ export default function AdminOverview() {
                             <h3 className="text-lg font-black uppercase tracking-tight italic text-white leading-none">SYSTEM PROTOCOLS</h3>
                         </div>
                         <div className="space-y-5">
-                            {[
-                                { title: 'Auth: Ramesh S.', status: 'ENCRYPTED' },
-                                { title: 'Grid Alert #X2', status: 'RESOLVED' },
-                                { title: 'Asset Re-route', status: 'EXECUTED' }
-                            ].map((log, i) => (
-                                <div key={i} className="flex items-center gap-4">
+                            {rides.filter(r => r.status === 'pending').slice(0, 3).map((r) => (
+                                <div key={r.id} className="flex items-center gap-4">
                                     <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(31,255,255,0.4)]" />
                                     <div className="flex-1">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-white leading-none mb-1">{log.title}</p>
-                                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-600">{log.status}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white leading-none mb-1">New: {r.passengerName}</p>
+                                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-600">PENDING APPROVAL</p>
                                     </div>
                                 </div>
                             ))}
+                            {pendingApprovals > 0 && (
+                                <div className="flex items-center gap-4">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                                    <div className="flex-1">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white leading-none mb-1">{pendingApprovals} Pilots Waiting</p>
+                                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-600">VERIFICATION REQ</p>
+                                    </div>
+                                </div>
+                            )}
+                            {rides.length === 0 && pendingApprovals === 0 && (
+                                <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Buffer empty</p>
+                            )}
                         </div>
                     </Card>
                 </div>

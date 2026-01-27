@@ -32,12 +32,7 @@ const defaultDocuments: DocumentType[] = [
     { id: 'auto_photo', name: 'Auto Photo (Front/Side)', photoCount: 2, isMandatory: true },
 ]
 
-const mockDrivers: MockDriverRegistry[] = [
-    { id: 'd1', name: 'Ramesh Patil', status: 'active', joinedDate: '2024-01-10' },
-    { id: 'd2', name: 'Suresh Pawar', status: 'active', joinedDate: '2024-01-12' },
-    { id: 'd3', name: 'Vijay K', status: 'pending', joinedDate: '2024-01-15' },
-    { id: 'd4', name: 'Amit Singh', status: 'active', joinedDate: '2024-01-11' },
-]
+const mockDrivers: MockDriverRegistry[] = []
 
 export const useAdminStore = create<AdminState>()(
     persist(

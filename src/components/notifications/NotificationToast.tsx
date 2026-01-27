@@ -20,8 +20,8 @@ export default function NotificationToast() {
             }, 5000)
         }
 
-        window.addEventListener('MOCK_GMAIL_NOTIFICATION', handleNewNotification)
-        return () => window.removeEventListener('MOCK_GMAIL_NOTIFICATION', handleNewNotification)
+        window.addEventListener('GMAIL_SYNC_NOTIFICATION', handleNewNotification)
+        return () => window.removeEventListener('GMAIL_SYNC_NOTIFICATION', handleNewNotification)
     }, [])
 
     return (
